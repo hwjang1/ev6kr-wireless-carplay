@@ -1,0 +1,52 @@
+{
+  "id": "usb-hotspot-kr",
+  "name": "USB Wi-Fi Hotspot (EV6 KR)",
+  "version": "0.1.2",
+  "hmgapi": ">=1.0.0",
+  "authors": [
+    "hwjang"
+  ],
+  "license": "AGPL-3.0",
+  "description": "The hotspot wireless CarPlay joins on a Korean EV6 without a Wi-Fi chip: a USB Wi-Fi dongle (RTL8812BU/RTL8822BU) on the stock CarPlay SSID and password, with its own driver (GPL-2.0, modules/SOURCE.txt), the stock hostapd and dnsmasq. Needs no usbwifi.hotspot (stays off while that is installed).",
+  "system": {
+    "product": [
+      "CVEV.KOR."
+    ],
+    "firmware": "260902"
+  },
+  "services": [
+    {
+      "name": "usbap",
+      "script": "svc/usbap.sh",
+      "user": "root",
+      "start": "boot",
+      "restart": true
+    }
+  ],
+  "network": {
+    "rules": [
+      {
+        "chain": "input",
+        "in": "rtwlan+",
+        "proto": "all",
+        "action": "accept"
+      },
+      {
+        "chain": "output",
+        "out": "rtwlan+",
+        "proto": "all",
+        "action": "accept"
+      }
+    ]
+  },
+  "logs": {
+    "tags": [
+      "EV6KR-USBAP",
+      "hostapd",
+      "dnsmasq"
+    ],
+    "match": [
+      "RTW:"
+    ]
+  }
+}
