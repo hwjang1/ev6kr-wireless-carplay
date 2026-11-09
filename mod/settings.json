@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "settings": [
+    {
+      "key": "tbt",
+      "type": "toggle",
+      "default": true,
+      "title": "Turn-by-turn on the cluster and HUD",
+      "apply": "rebuild"
+    },
+    {
+      "key": "bridge",
+      "type": "toggle",
+      "default": true,
+      "title": "Wireless CarPlay (Bluetooth bridge and Wi-Fi sessions)",
+      "apply": "rebuild"
+    },
+    {
+      "key": "audio",
+      "type": "toggle",
+      "default": true,
+      "title": "CarPlay music and Siri over Wi-Fi (AAC, Opus)",
+      "apply": "rebuild"
+    },
+    {
+      "key": "early_start",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "CarPlay starts as soon as Bluetooth is ready",
+      "description": "The CarPlay app starts when Bluetooth is ready (about 30-40 s after power-on) instead of at the end of startup (about 47 s), so the phone connects up to 10 s sooner."
+    },
+    {
+      "key": "usb_drives",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "USB drives and hubs don't start wired Android Auto",
+      "description": "A hook in the Android Auto app (no files changed). Without it, a USB drive can block wireless Android Auto until the head unit restarts."
+    }
+  ]
+}

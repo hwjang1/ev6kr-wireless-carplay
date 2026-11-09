@@ -1,0 +1,114 @@
+{
+  "id": "wireless-carplay-kr",
+  "name": "Wireless CarPlay (EV6 KR, USB Wi-Fi)",
+  "version": "0.1.12",
+  "hmgapi": ">=1.0.0",
+  "authors": [
+    "VysseCodes",
+    "hwjang"
+  ],
+  "license": "AGPL-3.0",
+  "description": "Wireless CarPlay on a Korean EV6 without a Wi-Fi chip, over a USB Wi-Fi hotspot (the usb-hotspot-kr mod, or usbwifi.hotspot), with turn-by-turn on the cluster and HUD. Based on HMG-API's wireless-carplay-aa 2.1.0.",
+  "system": {
+    "product": [
+      "CVEV.KOR."
+    ],
+    "firmware": "260902"
+  },
+  "parts": [
+    {
+      "id": "projection"
+    },
+    {
+      "id": "tbt",
+      "when": "settings.tbt"
+    },
+    {
+      "id": "bridge",
+      "when": "settings.bridge"
+    },
+    {
+      "id": "audio",
+      "when": "settings.audio"
+    }
+  ],
+  "feature_flags": [
+    "com.hkmc.software.connectivity.carplay_wireless"
+  ],
+  "provides": {
+    "star_key": [
+      {
+        "id": "carplay",
+        "title": "Apple CarPlay",
+        "broadcast": "com.hkmc.intent.action.DIPO_CUSTOM_SHORTCUT"
+      }
+    ]
+  },
+  "logs": {
+    "tags": [
+      "DiPO",
+      "GPM",
+      "Iap2",
+      "GalReceiver"
+    ],
+    "match": [
+      "HMG-API:"
+    ]
+  },
+  "hooks": {
+    "jar": "hooks.jar",
+    "entry": "hmgapi.mods.wireless.Wireless",
+    "points": {
+      "framework.context_impl.start_service": "replace",
+      "framework.navigation_cluster.update_tbt_info": "replace",
+      "framework.navigation_cluster.update_tbt_sub_info": "replace",
+      "framework.navigation_cluster.update_tbt_sub_info_b": "replace",
+      "framework.navigation_cluster.update_tbt_sub_info2": "replace",
+      "framework.navigation_cluster.update_tbt_sub_info2_b": "replace",
+      "framework.navigation_cluster.update_tbt_sub_info_2c": "replace",
+      "framework.navigation_cluster.update_remain_dis": "replace",
+      "framework.navigation_cluster.update_tp_crossroad_name": "replace",
+      "framework.navigation_cluster.update_tp_destination_name": "replace",
+      "framework.navigation_cluster.update_tp_turn_list": "replace",
+      "framework.navigation_cluster.update_tp_turn_list_new": "replace",
+      "framework.navigation_cluster.update_tp_lane_info": "replace",
+      "iap2.init_info.check_supports_features": "change",
+      "iap2.service.on_create": "observe",
+      "iap2.service_receiver.on_receive": "observe",
+      "gpm.navigation_status.init": "change",
+      "gpm.navigation_status.next_turn": "observe",
+      "gpm.navigation_status.next_turn_distance": "observe",
+      "gpm.navigation_status.status": "observe",
+      "gpm.receiver.send_navigation_focus": "observe",
+      "gpm.receiver.destroy": "observe",
+      "dipo.iap2_proxy.stop_route_guidance": "observe",
+      "dipo.btcm.register_listener": "observe",
+      "dipo.carplay.session_created": "observe",
+      "dipo.carplay.session_started": "observe",
+      "dipo.carplay.session_finalized": "observe",
+      "dipo.carplay.iap_message": "observe",
+      "dipo.utils.is_support_wireless_carplay": "replace",
+      "dipo.iap2_listener.connected": "replace",
+      "dipo.iap2_listener.disconnected": "replace",
+      "dipo.iap2_listener.notify": "replace",
+      "dipo.session_listener.session_details": "observe",
+      "dipo.iap2.bt_address": "change",
+      "dipo.bt.set_carplay_bt_address": "replace"
+    },
+    "native": {
+      "libCarPlayCore.so": [
+        "recipes/carplay-core-screen-timeout.recipe",
+        "recipes/carplay-core-wifi.recipe"
+      ],
+      "libCarPlayCoreUtils.so": [
+        "recipes/carplay-coreutils-usbwifi.recipe"
+      ],
+      "libCarPlayAudio.so": [
+        "recipes/carplay-audio-formats.recipe"
+      ],
+      "libCarPlayUtils.so": [
+        "recipes/carplay-utils-converter.recipe"
+      ]
+    }
+  }
+}

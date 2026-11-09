@@ -1,0 +1,27 @@
+{
+  "cars": {
+    "CVEV.KOR.": "ev6_kr"
+  },
+  "stock": "patches/{set}/stock",
+  "expect": "patches/{set}/expect",
+  "changes": [
+    {
+      "type": "prop",
+      "key": "persist.ium.support",
+      "value": "carplay",
+      "part": "projection"
+    },
+    {
+      "type": "prop",
+      "key": "persist.sys.iap2.wifi",
+      "value": "t",
+      "part": "bridge"
+    },
+    {
+      "type": "prop",
+      "key": "persist.iap2.iden.wireless",
+      "value": "t",
+      "part": "bridge"
+    }
+  ]
+}

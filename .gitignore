@@ -20,6 +20,26 @@ logcat*.txt
 netsample*.txt
 dmesg*.txt
 *.log
+EV6KR-PREFLIGHT*.txt
+*-report.txt
+
+# Head-unit settings files hold the Wi-Fi passphrases (usbwifi.hotspot's config/hotspot.conf and
+# its .ev6kr-orig backup, the stock softap.conf). The car's kernel config (/proc/config.gz, the
+# driver build's input) is also kept outside. Local secrets and machine paths never go in.
+hotspot.conf*
+softap.conf*
+config.gz
+kernel-config.gz
+*.pass
+.env
+local.properties
+
+# Stock files, collections and downloaded toolchains/sources kept beside the repo, if copied in
+stock/
+trylogs/
+*.tar.gz
+*.tgz
+*.zip
 
 # Stock head-unit files (manufacturer apps, libraries, images) never go in: the repository keeps
 # only their hashes (mod/patches/*/stock) and our own recipes. Built kernel modules are build output.

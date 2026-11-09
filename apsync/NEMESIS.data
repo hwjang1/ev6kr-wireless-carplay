@@ -1,0 +1,26 @@
+[nemesis]
+version=1.1
+id=ev6kr.usbap.sync
+name=EV6 KR CarPlay Hotspot Sync
+type=application,service
+package-version=0.1.12
+short-desc="USB Wi-Fi hotspot on the stock CarPlay SSID and password"
+detailed-desc="EV6 KR without a Wi-Fi chip: usbwifi.hotspot's AP on the stock CarPlay SSID, password and channel (softap.conf, sent to the iPhone over iAP2), car LTE sharing off as stock. Launch: sync now. Uninstall puts the USB hotspot's own settings back."
+depends="usbwifi.hotspot"
+os="CVEV.KOR.*"
+models="cvev_kr"
+postinstall=scripts/post.sh
+preuninstall=scripts/preun.sh
+
+[app.0]
+kind=sh
+path=bin/sync-now.sh
+uid=root
+
+
+[service.0]
+name=apsync
+kind=sh
+path=svc/apsync.sh
+uid=root
+mode=restart
