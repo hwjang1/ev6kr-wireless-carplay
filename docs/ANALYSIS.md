@@ -786,3 +786,18 @@ HMG-API 모드는 root 서비스(`"services"`, 부팅 시 시작, 감시·재시
 - 판단: 국내형 차 중 모듈이 실제로 있는 차(그랜저, 쏘나타, 니로 등)에는 Korea Projection의 설명이 맞습니다. **이 EV6는 보드 자체가 모듈 버전 3(모듈 없음)을 알려 주므로, Wi-Fi를 켜도 `wlan0`은 생기지 않을 것으로 봅니다.** USB 동글 방식이 맞습니다.
 - 확인하려면(하지 않음): `svc wifi enable`이나 `insmod /system/wifi/bcmdhd.ko`를 한 번 해 보고 SDIO 카드와 `wlan0`이 생기는지 봅니다. Korea Projection에 따르면 Wi-Fi를 켜면 USB와 블루투스가 다시 시작되므로, 동글 핫스팟이 잠시 끊길 수 있습니다.
 - Korea Projection의 EV6 이슈(#63, 시험 중)는 Wi-Fi 단계까지 가지 못했습니다. 우리 첫 차량 시험(11절)과 같은 `btsettings.projection_helper` 매핑 문제로 무선 모드 훅이 통째로 꺼졌고, 1.7.2에서 그 지점을 빼는 중이라고 합니다.
+
+## 39. 무선 카플레이 곡 정보, 모드 0.1.13 (2026-11-09)
+
+- 사용자: 카플레이로 음악을 들을 때 다음·이전 곡으로 넘겨도 곡 정보가 표시되지 않음.
+- 원인(순정 DiPO): `setStartiAP2Service`(난독화 `e/b.e(int)`)는 전송 방식이 Wireless가 **아닐 때만** `Iap2SvcNowPlayingStart()`(곡 정보)와 `Iap2SvcTelephonyStartCallState/Updates()`를 부릅니다. `CarPlayTransportType`은 Wired 0, Wireless 1입니다.
+- 차 로그: 무선 세션은 모두 `setStartiAP2Service transportType[1]`이고, NowPlaying을 시작하는 `setStartiAP2Service mIAP2Service [USB]` 줄은 수집 로그 전체에서 0번입니다. 그 뒤 `DipoService`는 `onMediaReceiveTitle() SourceType : HEAD_UNIT`, `onMediaReceiveArtist() is null 아티스트 정보 없음`으로 빈 곡 정보만 받습니다. 그래서 계기판, 미디어 위젯, 분할 화면에 제목·아티스트·앨범 아트가 나오지 않습니다.
+- 고친 방법: Korea Projection의 HMG-API 포크(`StopDragon/HMG-API` `korea-build`, 커밋 `577434c`, AGPL-3.0, 니로 하이브리드 260902에서 확인)를 그대로 옮겼습니다.
+  - 브리지가 CarPlay 채널 세션(comp=5)의 식별 완료 알림(`noti 0`)을 DiPO에서 감출 때, 0.5초 뒤 `Iap2SvcNowPlayingStart()`를 직접 부릅니다. 세션마다 한 번, 거절되면 0.5초 간격으로 3번까지 시도하고, 세션이 바뀐 뒤의 늦은 시도는 버립니다.
+  - iAP2 서버는 현재 세션(길안내와 같은 세션)에 요청을 보내고, 받은 NowPlaying 업데이트를 DiPO를 포함한 모든 리스너에 전달합니다. DiPO는 USB 때와 같은 경로(`onMediaReceiveTitle` 등)로 계기판·위젯에 보냅니다.
+  - 이 차의 순서도 맞습니다: `setStartiAP2Service transportType[1]`(00:51:08.04) → `iAP2 connected comp=5`(00:51:11.14) → `dropping iAP2 noti 0`(00:51:12.03).
+  - 전화 상태 업데이트는 그대로 둡니다. 새 훅 지점은 없습니다(기존 `dipo.iap2_listener.notify`).
+- 설정 `now_playing`(기본 켬, 재시작 후 적용). 로그: `NowPlaying started for the CarPlay-channel session (try N)` 또는 `NowPlaying not started (…)`.
+- 시험: `tests/nowplaying-test.sh`(그쪽 호스트 시험 그대로, 23개 통과). 차량 미시험. 번들: `dist/ev6kr-wireless-carplay-0.1.12-mod0.1.13-nemesis.zip`.
+- 확인할 것: 로그의 `NowPlaying started …`, DiPO의 `onMediaReceiveTitle`·`onMediaReceiveArtist`에 실제 값, 계기판·미디어 위젯·분할 화면 표시.
+

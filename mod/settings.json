@@ -23,6 +23,14 @@
       "apply": "rebuild"
     },
     {
+      "key": "now_playing",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "Song info on wireless CarPlay (cluster, media widget)",
+      "description": "DiPO only asks the iPhone for song info on USB; the mod asks on wireless too. A hook in DiPO (no files changed)."
+    },
+    {
       "key": "early_start",
       "type": "toggle",
       "default": true,

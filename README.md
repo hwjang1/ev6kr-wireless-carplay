@@ -15,21 +15,21 @@ HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)
 
 > **상태 (2026-11-09): 기존 구성(`usbwifi.hotspot` + `ev6kr.usbap.sync` 0.1.12 + 카플레이 모드)과 ipTIME AX900UA(RTL8831BU) 동글로 무선 카플레이가 동작합니다.**
 > - **차에서 확인:** 시동 뒤 자동 연결, 24분 주행 중 끊김 없음, 화면과 소리, 클러스터·HUD 길안내(T맵), 차 LTE를 공유하지 않는 순정 방식(iPhone은 자기 셀룰러 사용). 모드는 0.1.10까지 확인했습니다([31](docs/ANALYSIS.md)·[35절](docs/ANALYSIS.md)).
-> - **아직 차에서 확인하지 않음:** 모드 0.1.11(T맵 길안내 아이콘 보강), 0.1.12(블루투스가 준비되면 바로 카플레이 시작, 연결 최대 약 10초 단축, [37절](docs/ANALYSIS.md)), 네이버지도 길안내(앱 설정의 HUD 스위치를 켠 뒤), ★ 키로 카플레이 열기.
+> - **아직 차에서 확인하지 않음:** 모드 0.1.11(T맵 길안내 아이콘 보강), 0.1.12(블루투스가 준비되면 바로 카플레이 시작, 연결 최대 약 10초 단축, [37절](docs/ANALYSIS.md)), 0.1.13(무선에서도 계기판·미디어 위젯에 곡 정보, [39절](docs/ANALYSIS.md)), 네이버지도 길안내(앱 설정의 HUD 스위치를 켠 뒤), ★ 키로 카플레이 열기.
 > - RTL8812BU 동글 한 개는 송신부 불량으로 링크가 계속 끊겼습니다([29절](docs/ANALYSIS.md)). 독립 구성(`usb-hotspot-kr`)은 보류 중입니다.
 >
 > 아래 [알려진 제약](#알려진-제약과-미확인-사항)을 먼저 읽어 주세요.
 
 ## 다운로드
 
-[릴리스 페이지](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)에서 받습니다. 지금 판은 **v0.1.12 시험판(Pre-release)**입니다.
+[릴리스 페이지](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)에서 받습니다. 지금 판은 **v0.1.13 시험판(Pre-release)**입니다.
 
 | 파일 | 용도 |
 |---|---|
-| [`ev6kr-wireless-carplay-nemesis.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.12/ev6kr-wireless-carplay-nemesis.zip) | **설치용.** USB 최상위에 풀고 꽂으면 NEMESIS에 두 패키지가 나옵니다([설치 순서](#설치-순서) 5단계). 같은 파일이 버전이 붙은 이름(`ev6kr-wireless-carplay-0.1.12-mod0.1.12-nemesis.zip`)으로도 있습니다 |
-| [`ev6kr-preflight-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.12/ev6kr-preflight-usb.zip) | 설치 전 점검 USB(1단계) |
-| [`ev6kr-trylog-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.12/ev6kr-trylog-usb.zip) | 문제가 생겼을 때 로그 수집 USB(8단계) |
-| [`SHA256SUMS.txt`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.12/SHA256SUMS.txt) | 받은 파일 확인용: `shasum -a 256 -c SHA256SUMS.txt` |
+| [`ev6kr-wireless-carplay-nemesis.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.13/ev6kr-wireless-carplay-nemesis.zip) | **설치용.** USB 최상위에 풀고 꽂으면 NEMESIS에 두 패키지가 나옵니다([설치 순서](#설치-순서) 5단계). 같은 파일이 버전이 붙은 이름(`ev6kr-wireless-carplay-0.1.12-mod0.1.13-nemesis.zip`)으로도 있습니다 |
+| [`ev6kr-preflight-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.13/ev6kr-preflight-usb.zip) | 설치 전 점검 USB(1단계) |
+| [`ev6kr-trylog-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.13/ev6kr-trylog-usb.zip) | 문제가 생겼을 때 로그 수집 USB(8단계) |
+| [`SHA256SUMS.txt`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/download/v0.1.13/SHA256SUMS.txt) | 받은 파일 확인용: `shasum -a 256 -c SHA256SUMS.txt` |
 
 USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 USB 최상위에 풉니다. `packages/` 안의 zip은 풀지 마세요.
 
@@ -95,11 +95,11 @@ USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 
    - 점검에서 `app_process`가 "모르는 빌드"로 나오면, 설치 프로그램이 거부합니다. 진행하려면 USB에 빈 파일 `HMGAPI/FORCE`를 두어야 합니다(**본인 책임**: `/system/bin/app_process`를 HMG-API의 래퍼로 바꾸며, HMG-API 제거 시 원래 파일로 복원됨).
 4. **훅 맵 만들기**: HMG-API 앱 → Settings → Hook map → *Map this car from its files* → *Check the map on this car* → 재시작.
    (이 저장소의 [maps/](maps/)는 같은 방법으로 Mac에서 만든 것이라 결과 대조용입니다. adb로 `/data/hmgapi/maps/kia/ev6/kor/260902/`에 넣고 `hmgapid engine verify-map`을 실행해도 됩니다.)
-5. **두 패키지 설치**: [릴리스](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)의 `ev6kr-wireless-carplay-nemesis.zip`(직접 빌드했다면 `dist/ev6kr-wireless-carplay-0.1.12-mod0.1.12-nemesis.zip`)을 USB 루트에 풀고 꽂으면 NEMESIS 패키지 스토어에 두 패키지가 나옵니다.
+5. **두 패키지 설치**: [릴리스](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)의 `ev6kr-wireless-carplay-nemesis.zip`(직접 빌드했다면 `dist/ev6kr-wireless-carplay-0.1.12-mod0.1.13-nemesis.zip`)을 USB 루트에 풀고 꽂으면 NEMESIS 패키지 스토어에 두 패키지가 나옵니다.
    **① EV6 KR CarPlay Hotspot Sync**를 먼저, 이어서 **② Wireless CarPlay (EV6 KR, USB Wi-Fi)**를 설치합니다.
    - ①은 USB 핫스팟의 SSID·비밀번호를 순정 카플레이 값(`Kia_` + 4글자)으로 바꿉니다. NEMESIS Manager에서 Launch를 누르면 즉시 동기화하고 결과를 알림으로 보여줍니다.
    - ②는 HMG-API 엔진으로 설치·적용됩니다. HMG-API에 등록되지 않은 서명 키라 경고가 나오지만 설치는 됩니다.
-   - 하나씩 설치하려면 `ev6kr.usbap.sync-0.1.12-nemesis.zip`, `wireless-carplay-kr-0.1.12-nemesis.zip`을 각각 써도 됩니다. 이전 버전이 깔려 있으면 스토어에서 업데이트로 나옵니다.
+   - 하나씩 설치하려면 `ev6kr.usbap.sync-0.1.12-nemesis.zip`, `wireless-carplay-kr-0.1.13-nemesis.zip`을 각각 써도 됩니다. 이전 버전이 깔려 있으면 스토어에서 업데이트로 나옵니다.
 6. USB를 빼고 **동글을 꽂은 뒤 헤드유닛 재시작**. 기능 플래그와 훅은 재시작 뒤에 적용됩니다.
 7. **연결**: iPhone에서 예전 핫스팟(`HKG_USB_Hotspot`)과 **`Kia_…` 네트워크를 "이 네트워크 설정 지우기"** 하고, 설정 → 일반 → CarPlay에서 이 차를 지웁니다(손으로 입력한 설정이 남아 있으면 카플레이가 받은 설정과 엇갈립니다). iCloud 키체인을 쓰는 다른 Apple 기기에도 같은 네트워크가 남아 있으면 지웁니다. 이어서 블루투스로 연결하고 카플레이 안내에 따라 진행합니다. **핫스팟 비밀번호를 직접 입력하지 마세요.**
 8. **안 되면**: 동글을 빼고 로그 수집 USB(릴리스의 `ev6kr-trylog-usb.zip`, 또는 [usb/trylog/](usb/trylog/))를 꽂아 실행 → 화면에 "EV6KR 로그 수집 완료" 토스트가 뜰 때까지(약 1분) 기다렸다가 빼고 `EV6KR-TRYLOG/` 폴더를 보내주세요. 일찍 빼면 파일이 비어 있습니다(설정 파일은 먼저 적용됨).
@@ -122,7 +122,7 @@ USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 
 - 순정 카플레이 비밀번호에 영문·숫자 외 문자가 있으면 영문·숫자 12자리로 바꿉니다(iAP2와 같은 `WifiManager` API, 원래 값은 백업 후 제거 시 복원). 그대로 두려면 빈 파일 `/data/nemesis/ev6kr.usbap.sync.keeppsk`
 - USB 핫스팟이 STA(클라이언트) 모드일 때는 동기화하지 않습니다.
 - 차 LTE 공유: 0.1.12부터 끕니다(순정처럼 iPhone은 자기 셀룰러 사용). 다시 켜려면 `/data/nemesis/ev6kr.usbap.sync.tune`에 `lte_share=1`(trylog USB의 `EV6KR-TUNE.txt`로도 설정)
-- 모드 설정(HMG-API 앱): 길안내(tbt), 블루투스 브리지(bridge), 무선 오디오(audio), 블루투스 준비 즉시 카플레이 시작(early_start, 0.1.12, 기본 켬, 재시작 후 적용), USB 메모리·허브가 유선 안드로이드 오토를 시작하지 않게(usb_drives)
+- 모드 설정(HMG-API 앱): 길안내(tbt), 블루투스 브리지(bridge), 무선 오디오(audio), 무선 카플레이 곡 정보(now_playing, 0.1.13, 기본 켬, 재시작 후 적용: 계기판·미디어 위젯·분할 화면의 곡 제목), 블루투스 준비 즉시 카플레이 시작(early_start, 0.1.12, 기본 켬, 재시작 후 적용), USB 메모리·허브가 유선 안드로이드 오토를 시작하지 않게(usb_drives)
 
 ## 빌드
 

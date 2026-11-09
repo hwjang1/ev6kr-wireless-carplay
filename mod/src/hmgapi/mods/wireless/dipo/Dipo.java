@@ -60,6 +60,8 @@ public final class Dipo {
     static LoadedApp app;
     static volatile IIap2Service iap2;
     static boolean tbt, bridge;
+    /** song info on wireless CarPlay (NowPlaying), see NowPlaying */
+    static volatile boolean nowPlaying;
     static Handler turnsHandler;
     static CpTurns turns;
     static RgListener rg;
@@ -83,6 +85,7 @@ public final class Dipo {
         app = a;
         tbt = m.settingBoolean("tbt", true);
         bridge = m.settingBoolean("bridge", true);
+        nowPlaying = m.settingBoolean("now_playing", true);
         // the CarPlay libraries, patched in memory once DiPO loads them (files stay stock)
         if (bridge) m.nativePatch(a, "libCarPlayCore.so");   // AirPlay sessions over Wi-Fi
         // EV6 KR: SocketGetInterfaceInfo counts the USB Wi-Fi interface (rtwlanN) as Wi-Fi
