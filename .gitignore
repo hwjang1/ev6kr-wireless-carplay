@@ -1,0 +1,47 @@
+# Build output (tools/build.sh, driver/build.sh): rebuilt from source. Release zips belong in the
+# hosting site's releases, not in the repository.
+build/
+dist/
+
+# Signing keys. The mod key lives outside the repository (~/hmg-private/keys).
+*.key
+*.key.pub
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Per-car logs and collections: they hold phone names, Bluetooth/Wi-Fi addresses and the unit's
+# details. Keep them outside the repository (~/hmg-private/trylogs).
+EV6KR-TRYLOG*/
+usbwifi_hotspot_log/
+*.logcat.txt*
+logcat*.txt
+netsample*.txt
+dmesg*.txt
+*.log
+
+# Stock head-unit files (manufacturer apps, libraries, images) never go in: the repository keeps
+# only their hashes (mod/patches/*/stock) and our own recipes. Built kernel modules are build output.
+*.apk
+*.odex
+*.oat
+*.jar
+*.so
+*.ko
+*.img
+
+# Java and Python leftovers
+*.class
+*.dex
+__pycache__/
+*.pyc
+
+# OS and editor files
+.DS_Store
+._*
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

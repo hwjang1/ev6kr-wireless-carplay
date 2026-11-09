@@ -1,0 +1,10 @@
+# Everything here runs on or builds for the head unit (mksh, Android 4.4 toolbox): LF line endings
+# on every checkout, Windows included. A CR at a line end breaks the shell scripts there.
+* text=auto eol=lf
+
+# Binary files: never converted. bin/*.bin are SCSI commands written byte for byte to the dongle.
+*.bin binary
+*.gz binary
+*.zip binary
+*.png binary
+*.jpg binary
