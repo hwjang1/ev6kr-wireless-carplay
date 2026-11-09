@@ -8,8 +8,10 @@
 #   usb-hotspot-kr-<v>.zip, -nemesis*.zip      the standalone USB Wi-Fi hotspot mod (no usbwifi.hotspot);
 #                                              needs the driver built first (driver/build.sh)
 #   ev6kr-wireless-carplay-standalone-<v>-nemesis.zip   one USB stick: the hotspot mod + the CarPlay mod
+#   ev6kr-preflight-usb.zip, ev6kr-trylog-usb.zip       the preflight and trylog sticks (unzip to a stick's root)
+#   release/                                   the files for a GitHub release, with SHA256SUMS.txt
 #
-#   tools/build.sh [apsync|mod|bundle|all|hotspot|standalone]    (default all: the usbwifi.hotspot set)
+#   tools/build.sh [apsync|mod|bundle|sticks|all|release|hotspot|standalone]    (default all: the usbwifi.hotspot set)
 #   tools/build.sh keygen                      make the mod signing key (once; keep it, outside the repo)
 #
 # Needs: a JDK (javac, java), the Android SDK (a platforms/android-*/android.jar, build-tools d8),
@@ -138,6 +140,34 @@ bundle() {
 }
 
 
+# sticks: the preflight and trylog USB sticks as zips. Their names carry no version, so a
+# release's direct link stays the same; each release has its own copy.
+sticks() {
+    for s in preflight trylog; do
+        rm -rf "$B/stick-$s" && mkdir -p "$B/stick-$s"
+        cp "usb/$s/NEMESIS.data" "usb/$s/NEMESIS.sh" "$B/stick-$s/"
+        zipdir "$B/stick-$s" "$DIST/ev6kr-$s-usb.zip"
+        echo "$DIST/ev6kr-$s-usb.zip"
+    done
+}
+
+# release: the files for a GitHub release in dist/release/. The install stick also goes in under a
+# name without versions (ev6kr-wireless-carplay-nemesis.zip) for a fixed "latest" download link.
+release() {
+    AV=$(sed -n 's/^package-version=//p' apsync/NEMESIS.data)
+    MV=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' mod/mod.json)
+    MID=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' mod/mod.json)
+    R=$DIST/release
+    rm -rf "$R" && mkdir -p "$R"
+    cp "$DIST/ev6kr-wireless-carplay-$AV-mod$MV-nemesis.zip" "$R/"
+    cp "$DIST/ev6kr-wireless-carplay-$AV-mod$MV-nemesis.zip" "$R/ev6kr-wireless-carplay-nemesis.zip"
+    cp "$DIST/ev6kr.usbap.sync-$AV-nemesis.zip" "$DIST/$MID-$MV-nemesis.zip" "$R/"
+    cp "$DIST/ev6kr-preflight-usb.zip" "$DIST/ev6kr-trylog-usb.zip" "$R/"
+    (cd "$R" && shasum -a 256 *.zip > SHA256SUMS.txt)
+    ls "$R"
+}
+
+
 # hotspot: the usb-hotspot-kr HMG-API mod (standalone: its own driver, the stock hostapd and
 # dnsmasq). The driver comes from build/driver (driver/build.sh): tcc803x is needed, tcc897x
 # is taken when there.
@@ -209,9 +239,11 @@ case "${1:-all}" in
     apsync) apsync ;;
     mod) mod ;;
     bundle) bundle ;;
-    all) apsync; mod; bundle ;;
+    sticks) sticks ;;
+    all) apsync; mod; bundle; sticks ;;
+    release) apsync; mod; bundle; sticks; release ;;
     hotspot) hotspot ;;
     standalone) hotspot; mod; standalone ;;
     standalone-bundle) standalone ;;   # only the stick, from the packages already in dist/
-    *) echo "usage: tools/build.sh [apsync|mod|all|keygen]"; exit 2 ;;
+    *) echo "usage: tools/build.sh [apsync|mod|bundle|sticks|all|release|hotspot|standalone|keygen]"; exit 2 ;;
 esac

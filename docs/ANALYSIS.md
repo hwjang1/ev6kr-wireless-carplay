@@ -7,7 +7,7 @@
 
 | 항목 | 결과 |
 |---|---|
-| 순정 Wi-Fi 칩 | 없음. `/sys/bus/sdio/devices` 비어 있음. `/system/wifi`에 `bcmdhd.ko`와 BCM89359 펌웨어 파일만 있음 |
+| 순정 Wi-Fi 칩 | 없음. 보드가 알려 주는 Wi-Fi 모듈 버전이 3이고, 순정 WifiService가 이 값을 "Wi-Fi 하드웨어 없음"으로 처리합니다(38절). `/sys/bus/sdio/devices`도 비어 있음. `/system/wifi`에 `bcmdhd.ko`와 BCM89359 펌웨어 파일만 있음 |
 | USB 동글 | `0bda:b812`(RTL88x2BU, 88x2bu 드라이버), 480Mbps. 인터페이스 `rtwlan0`(미사용) / `rtwlan1`(AP, `192.168.43.1/24`) |
 | 동글 AP 설정 | `hw_mode=a`, `channel=149`, `ieee80211n=1`(HT20). Mac 기준 신호 -30dBm, ping 손실 0%, 평균 11ms |
 | 데이터 USB 포트 | 1개(`4-1`). 동글과 USB 메모리를 동시에 쓰려면 허브 필요 |
@@ -772,3 +772,17 @@ HMG-API 모드는 root 서비스(`"services"`, 부팅 시 시작, 감시·재시
   - 예상: 세션이 SPP 연결 뒤 4~5초에 생깁니다. 08:13 부팅이라면 52초 → 42초쯤이고, BT가 늦은 부팅(00:38, 00:50)은 2~5초 당겨집니다.
   - 차량 미시험. 번들: `dist/ev6kr-wireless-carplay-0.1.12-mod0.1.12-nemesis.zip`. 0.1.11의 길안내 아이콘 보강이 포함되어 있습니다.
 - **더 줄이려면(시험 안 함):** iPhone은 BT보다 먼저(26~40초) AP에 붙는 일이 많습니다. iAP2(블루투스) 없이 Bonjour만으로 세션을 시작하면 BT를 기다리지 않아도 됩니다. 하지만 DiPO의 흐름(`onTransportIdentifier` → `createDipo` → `startDipo`)이 iAP2 식별에 묶여 있어 손이 많이 가고 위험합니다. BT 자동 연결 시점(BTCM 준비 뒤 3~4초)은 Broadcom 스택 몫이라 건드리지 않습니다.
+
+## 38. 순정 Wi-Fi 칩 유무 다시 확인 (2026-11-09): 켜지 않아서가 아니라 모듈이 없음
+
+- 계기: Korea Projection(StopDragon/korea-projection, AGPL-3.0)은 "국내형 펌웨어에는 일반 Wi-Fi를 켜는 메뉴가 없어서, Wi-Fi를 한 번도 켜지 않은 차는 칩이 SDIO에 나타나지 않는다"고 보고 `svc wifi enable`로 한 번 켜서 칩을 깨웁니다(그랜저 #7 등). 이 말대로라면 우리 근거였던 "`/sys/bus/sdio/devices` 비어 있음"만으로는 칩이 없다고 단정할 수 없습니다.
+- 그 설명 자체는 Broadcom SDIO 모듈에서 맞습니다. 모듈 전원(WL_REG_ON)은 `bcmdhd.ko`를 올릴 때 켜지므로, 드라이버를 올린 적이 없으면 칩이 있어도 SDIO 장치가 없습니다.
+- 하지만 이 차에는 SDIO와 무관한 하드웨어 근거가 있습니다.
+  - 순정 `libhardware_legacy.so`의 `wifi_get_module_version()`은 `bsp_version_get_bt_version()`을 부릅니다. 이 함수는 `/dev/daudio_info`에 ioctl `0x6964`를 보내 보드의 BT/Wi-Fi 모듈 버전을 받습니다(값 + 1). 드라이버 로드와 상관없이 부팅 때 바로 정해집니다. 버전 5면 `bcmdhd5.cal`, 그 밖이면 `bcmdhd.cal`을 씁니다.
+  - 순정 `WifiService.checkAndStartWifi()`는 `com.hkmc.software.wifi.module` 기능이 있어도 **모듈 버전이 3이면 `mWifiHWSupported=false`**로 바꿉니다. 제조사 코드가 버전 3을 "Wi-Fi 하드웨어 없음"으로 처리한다는 뜻입니다.
+  - 이 차의 수집 9건(11-08 23:32 ~ 11-09 08:17) 모두 부팅 때 `I/WifiService: [Feature] Hardware(not supported), HW Variant(3), Client(not supported), Hotspot(not supported), Wireless(supported)`를 남겼습니다.
+  - Korea Projection의 코드 주석도 같은 신호를 "부품 없음"으로 봅니다(#50: insmod 8초, 버전 3).
+  - 부팅 커널 로그에서 SDIO 컨트롤러 `mmc1`(`16460000.sdhc`)이 0.46~0.71초에 카드 초기화를 네 번 시도하고(`Switching to 3.3V signalling voltage failed`), SDIO 카드 발견 줄은 없습니다(보조 근거).
+- 판단: 국내형 차 중 모듈이 실제로 있는 차(그랜저, 쏘나타, 니로 등)에는 Korea Projection의 설명이 맞습니다. **이 EV6는 보드 자체가 모듈 버전 3(모듈 없음)을 알려 주므로, Wi-Fi를 켜도 `wlan0`은 생기지 않을 것으로 봅니다.** USB 동글 방식이 맞습니다.
+- 확인하려면(하지 않음): `svc wifi enable`이나 `insmod /system/wifi/bcmdhd.ko`를 한 번 해 보고 SDIO 카드와 `wlan0`이 생기는지 봅니다. Korea Projection에 따르면 Wi-Fi를 켜면 USB와 블루투스가 다시 시작되므로, 동글 핫스팟이 잠시 끊길 수 있습니다.
+- Korea Projection의 EV6 이슈(#63, 시험 중)는 Wi-Fi 단계까지 가지 못했습니다. 우리 첫 차량 시험(11절)과 같은 `btsettings.projection_helper` 매핑 문제로 무선 모드 훅이 통째로 꺼졌고, 1.7.2에서 그 지점을 빼는 중이라고 합니다.
