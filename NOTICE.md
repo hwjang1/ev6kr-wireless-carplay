@@ -6,6 +6,7 @@ This folder is a derivative of **HMG-API** (Open-HMG/HMG-API, AGPL-3.0), source 
 | Path | Origin |
 |---|---|
 | `mod/src/`, `mod/stubs/`, `mod/settings.json` | HMG-API `mods/wireless-carplay-aa` 2.1.0 by VysseCodes. Changed: `dipo/Bridge.java` (`ensureHotspot`: the USB Wi-Fi hotspot instead of the stock one on units without a Wi-Fi chip) |
+| `mod/src/hmgapi/mods/wireless/dipo/NowPlaying.java`, `tests/nowplaying/` | From Korea Projection's HMG-API fork (StopDragon/HMG-API, branch `korea-build`, commit `577434c`, AGPL-3.0): song info on wireless CarPlay. The matching changes in `dipo/Bridge.java`, `dipo/Dipo.java`, `mod/settings.json` (`now_playing`) and the `IIap2Service` stub follow the same commit |
 | `mod/mod.json`, `mod/patches.json` | Based on the same mod's files; changed for CVEV.KOR 260902 (id, system, feature flags, parts' changes, native recipes) |
 | `mod/recipes/carplay-core-wifi.recipe`, `carplay-audio-formats.recipe`, `carplay-utils-converter.recipe` | Copied unchanged from the same mod |
 | `mod/recipes/carplay-coreutils-usbwifi.recipe`, `carplay-core-screen-timeout.recipe` | New, made with HMG-API `tools/mkrecipe.py` (hashes of the stock bytes and our own new bytes only) |
