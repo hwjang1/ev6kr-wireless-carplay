@@ -803,3 +803,8 @@ HMG-API 모드는 root 서비스(`"services"`, 부팅 시 시작, 감시·재시
 - 시험: `tests/nowplaying-test.sh`(그쪽 호스트 시험 그대로, 23개 통과).
 - 차량 확인(2026-11-09, 사용자): 무선 카플레이에서 곡 정보가 표시됩니다(다음·이전 곡 포함). v0.1.13 시험판으로 공개했습니다.
 
+## 40. 동글 추가 확인: ipTIME AX900MINI (2026-11-10)
+
+- 차량 확인(2026-11-10, 사용자): ipTIME AX900MINI도 같은 구성(usbwifi.hotspot + apsync 0.1.12 + 모드 0.1.13)에서 무선 카플레이가 정상 동작합니다.
+- 칩셋과 USB id는 아직 로그로 확인하지 않았습니다. 판매 페이지와 검색으로도 칩셋을 찾지 못했습니다. usbwifi.hotspot이 올리는 드라이버(88x2bu, 8851bu) 중 하나가 잡은 것으로 보입니다.
+- 확인 방법: 이 동글을 꽂은 상태의 trylog에서 apsync 로그의 `USB device at … after the CD: 0bda:xxxx`(CD-ROM으로 잡히는 경우)나 USB 장치 목록의 vendor:product를 봅니다.
