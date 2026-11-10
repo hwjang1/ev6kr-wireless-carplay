@@ -140,10 +140,10 @@ bundle() {
 }
 
 
-# sticks: the preflight and trylog USB sticks as zips. Their names carry no version, so a
+# sticks: the preflight, trylog and carinfo USB sticks as zips. Their names carry no version, so a
 # release's direct link stays the same; each release has its own copy.
 sticks() {
-    for s in preflight trylog; do
+    for s in preflight trylog carinfo; do
         rm -rf "$B/stick-$s" && mkdir -p "$B/stick-$s"
         cp "usb/$s/NEMESIS.data" "usb/$s/NEMESIS.sh" "$B/stick-$s/"
         zipdir "$B/stick-$s" "$DIST/ev6kr-$s-usb.zip"
@@ -162,7 +162,7 @@ release() {
     cp "$DIST/ev6kr-wireless-carplay-$AV-mod$MV-nemesis.zip" "$R/"
     cp "$DIST/ev6kr-wireless-carplay-$AV-mod$MV-nemesis.zip" "$R/ev6kr-wireless-carplay-nemesis.zip"
     cp "$DIST/ev6kr.usbap.sync-$AV-nemesis.zip" "$DIST/$MID-$MV-nemesis.zip" "$R/"
-    cp "$DIST/ev6kr-preflight-usb.zip" "$DIST/ev6kr-trylog-usb.zip" "$R/"
+    cp "$DIST/ev6kr-preflight-usb.zip" "$DIST/ev6kr-trylog-usb.zip" "$DIST/ev6kr-carinfo-usb.zip" "$R/"
     (cd "$R" && shasum -a 256 *.zip > SHA256SUMS.txt)
     ls "$R"
 }

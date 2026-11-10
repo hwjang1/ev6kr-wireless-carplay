@@ -1,0 +1,49 @@
+name: 차종 지원 요청 (차량 정보)
+description: 다른 차종에서도 쓸 수 있는지, 차량 정보 수집 USB의 결과로 요청합니다
+title: "[차종 지원] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        [차량 정보 수집 안내](https://github.com/hwjang1/ev6kr-wireless-carplay/blob/main/docs/CARINFO.md)대로 수집한 `CARINFO-….txt`를 첨부해 주세요.
+        이슈는 누구나 볼 수 있습니다. **결과 txt 파일만** 올리고, `CARINFO-FILES-…` 폴더의 제조사 파일이나 다른 로그는 올리지 마세요.
+  - type: input
+    id: car
+    attributes:
+      label: 차종과 연식
+      placeholder: 예) 아이오닉 5 2022년형
+    validations:
+      required: true
+  - type: dropdown
+    id: carplay
+    attributes:
+      label: 지금 카플레이 상태
+      options:
+        - 유선 카플레이만 됨
+        - 순정 무선 카플레이도 됨
+        - 모름
+    validations:
+      required: true
+  - type: textarea
+    id: carinfo
+    attributes:
+      label: 결과 파일
+      description: CARINFO-….txt 파일을 여기에 끌어다 놓아 첨부해 주세요.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 기타
+      description: 설치된 NEMESIS 패키지, 수집하면서 있었던 일 등 (선택)
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 확인
+      options:
+        - label: 결과 파일을 열어 보고, 공개해도 되는 내용인지 확인했습니다.
+          required: true
+        - label: CARINFO-FILES 폴더의 제조사 파일은 첨부하지 않았습니다.
+          required: true
+        - label: 지원은 보장되지 않고, 대상이 되더라도 시험판 설치와 차량 시험은 제가 직접 해야 한다는 것을 압니다.
+          required: true
