@@ -45,18 +45,22 @@ fi
 # the kernel logs and every logcat copy go through this)
 NOSERIAL='serialno|command line|SerialNumber'
 
-say "ev6kr-trylog 13"
+say "ev6kr-trylog 15"
 say "date $(date)"
 say "stick: $H"
 toast "EV6KR 로그 수집 중: '수집 완료' 메시지가 뜰 때까지 스틱을 빼지 마세요"
 
 # ---- 1: dongle settings for the next attempt
-# EV6KR-DEBUG-OFF / EV6KR-DEBUG-ON next to this script: turn the debug logcat and sampler off or back on
-# (ev6kr.usbap.sync's, and usb-hotspot-kr's when that's installed)
-NODEBUG=/data/nemesis/ev6kr.usbap.sync.nodebug
-[ -d "$HS_DATA" ] && [ ! -d /data/nemesis/apps/ev6kr.usbap.sync ] && NODEBUG=$HS_DATA/usbap.nodebug
-[ -f "$H/EV6KR-DEBUG-OFF" ] && : > "$NODEBUG"
-[ -f "$H/EV6KR-DEBUG-ON" ] && rm -f "$NODEBUG"
+# EV6KR-DEBUG-ON / EV6KR-DEBUG-OFF next to this script: turn the debug logcat and sampler on or
+# off (ev6kr.usbap.sync's, and usb-hotspot-kr's when that's installed), from the service's next
+# round (30 s). Off by default since ev6kr.usbap.sync 0.2.0 / usb-hotspot-kr 0.1.3, which read
+# <base>.debug; the 0.1.x versions had it on unless <base>.nodebug: both files are set, so
+# either version follows the stick.
+DEBUGF=/data/nemesis/ev6kr.usbap.sync.debug
+[ -d "$HS_DATA" ] && [ ! -d /data/nemesis/apps/ev6kr.usbap.sync ] && DEBUGF=$HS_DATA/usbap.debug
+NODEBUG=${DEBUGF%.debug}.nodebug
+[ -f "$H/EV6KR-DEBUG-ON" ] && { : > "$DEBUGF"; rm -f "$NODEBUG"; }
+[ -f "$H/EV6KR-DEBUG-OFF" ] && { rm -f "$DEBUGF"; : > "$NODEBUG"; }
 # EV6KR-TUNE.txt next to this script: the dongle link settings (key=value lines, see
 # ev6kr.usbap.sync scripts/common.sh); EV6KR-TUNE-RESET: back to the package defaults
 # (ev6kr.usbap.sync's file, or usb-hotspot-kr's when that runs without it)
@@ -158,10 +162,12 @@ if [ -f "$H/EV6KR-RFPATH.txt" ] && [ -f "$HC" ]; then
     fi
 fi
 [ -f "$HC" ] && while IFS= read -r TL || [ -n "$TL" ]; do case "$TL" in MODULE_ARGS=*|AUTO_UPDATE=*|ENABLE_LTE_NAT=*) say "usbwifi.hotspot $TL" ;; esac; done < "$HC"
-if [ -f "$NODEBUG" ]; then
-    say "debug logcat: off (an EV6KR-DEBUG-ON file on this stick turns it back on)"
+if [ -f "$DEBUGF" ]; then
+    say "debug logging: on (an EV6KR-DEBUG-OFF file on this stick turns it off)"
+elif [ -f "$NODEBUG" ]; then
+    say "debug logging: off (an EV6KR-DEBUG-ON file on this stick turns it on)"
 else
-    say "debug logcat: on (an EV6KR-DEBUG-OFF file on this stick turns it off)"
+    say "debug logging: off from 0.2.0 on (0.1.x: on) (an EV6KR-DEBUG-ON file on this stick turns it on)"
 fi
 stage 1
 say ""
@@ -172,6 +178,11 @@ for p in persist.ium.support persist.sys.iap2.wifi persist.iap2.iden.wireless pe
     say "$p=$(getprop $p)"
 done
 say "up $(cat /proc/uptime)"
+say ""
+# disk space (toolbox df: sizes only) and the log files the packages keep, with their sizes
+say "--- disk"
+{ /system/bin/df /data /cache /system || df /data; } >> "$S" 2>&1
+ls -l /data/nemesis/ev6kr.usbap.sync.* /data/hmgapi/logs/hmgapi >> "$S" 2>&1
 say ""
 say "--- NEMESIS packages"
 nemesis pkg-list >> "$S" 2>&1
@@ -271,7 +282,11 @@ fi
 hmgapid engine map >> "$S" 2>&1
 hmgapid engine status >> "$S" 2>&1
 say "--- HMG-API services"
-cat /data/hmgapi/state/services.status >> "$S" 2>&1
+if [ -f /data/hmgapi/state/services.status ]; then
+    cat /data/hmgapi/state/services.status >> "$S" 2>&1
+else
+    say "none running"
+fi
 say "--- feature flags"
 grep -n -E 'carplay_wireless|androidauto_wireless|wifihotspot' "$(getprop ro.mobis.targetdir)/featurexml.cfg" >> "$S" 2>&1
 ls /system/etc/permissions 2>/dev/null | grep -E 'carplay|androidauto|wifihotspot' >> "$S"

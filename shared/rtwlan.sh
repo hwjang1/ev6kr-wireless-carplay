@@ -45,16 +45,42 @@ toast() {
     true
 }
 
-# debug_logcat: unless <RT_BASE>.nodebug exists (or the package is being removed), keep a
-# logcat of everything but the CAN status spam (BCMCanManager, NavigationCluster) in
-# <RT_BASE>.logcat.txt (1 MB x 4): logcat's own
+# debug_logcat: while <RT_BASE>.debug exists (and the package isn't being removed, and /data
+# isn't low: disk_check), keep a logcat of everything but the CAN status spam (BCMCanManager,
+# NavigationCluster) in <RT_BASE>.logcat.txt and at most DEBUG_KEEP rotated files of 1 MB
+# (about 5 MB in all): logcat's own
 # buffer only holds seconds on this unit, and the single USB port means no adb while the
-# dongle is in. On by default while this is a test release; usb/trylog collects it, and an
-# EV6KR-DEBUG-OFF file on that stick turns it off. May hold phone names and Bluetooth
-# addresses: for your own debugging.
+# dongle is in. Off by default since ev6kr.usbap.sync 0.2.0 and usb-hotspot-kr 0.1.3 (the
+# 0.1.x test releases had it on unless <RT_BASE>.nodebug existed): an EV6KR-DEBUG-ON file on
+# the usb/trylog stick turns it on, EV6KR-DEBUG-OFF off again; that stick collects it. May
+# hold phone names and Bluetooth addresses: for your own debugging.
+# The unit's logcat kept 10 rotated files although it was given "-r 1024 -n 4" (trylogs of
+# 2026-11-09: .1 to .10, all moving on): -r takes its value only when written together
+# (-r1024), and the loose "1024" ended the options, so -n never counted. Written together now,
+# and the service drops any rotated file past DEBUG_KEEP itself (debug_trim), whatever logcat does.
+DEBUG_FLAG=$RT_BASE.debug
+# 0.1.x's off switch: no longer read; the service removes it at start
 NODEBUG_FLAG=$RT_BASE.nodebug
 DEBUG_PID=$RT_BASE.logcat.pid
 DEBUG_LOG=$RT_BASE.logcat.txt
+DEBUG_KEEP=${DEBUG_KEEP:-4}
+# disk_check sets it while /data has less than DEBUG_MIN_FREE_MB free: no debug logging then
+LOWDISK=$RT_BASE.lowdisk
+DEBUG_MIN_FREE_MB=${DEBUG_MIN_FREE_MB:-100}
+# debug_on: debug logging wanted now (the logcat, the sampler)
+debug_on() {
+    [ -f "$DEBUG_FLAG" ] && [ ! -f "$LOWDISK" ] && [ -z "$DEBUG_STOP" ]
+}
+# debug_start_cleanup: at a service start, 0.1.x's off switch goes, and with debug logging off
+# the debug logcat's and sampler's files left from before go too
+debug_start_cleanup() {
+    rm -f "$NODEBUG_FLAG" 2>/dev/null
+    if [ -f "$DEBUG_FLAG" ]; then
+        return 0
+    fi
+    debug_files_rm
+    say "debug logging off (an EV6KR-DEBUG-ON file on the trylog stick turns it on)"
+}
 # every level from CarPlay (DiPO, the CarPlay/AirPlay libraries), iAP2, the Bluetooth manager and
 # its SPP, the hotspot side and HMG-API; warnings and errors from everything else (all of
 # logcat is ~60 KB/s on this unit, mostly Bluetooth audio, MICOM and launcher chatter)
@@ -65,17 +91,101 @@ debug_logcat() {
     # a pid from before a restart may now be another process
     [ -n "$_p" ] && [ -f "$PROC/$_p/comm" ] && read -r _c < "$PROC/$_p/comm"
     [ "$_c" = logcat ] || { _p=""; rm -f "$DEBUG_PID"; }
-    if [ ! -f "$NODEBUG_FLAG" ] && [ -z "$DEBUG_STOP" ]; then
-        [ -n "$_p" ] && return 0
-        logcat -v time -f "$DEBUG_LOG" -r 1024 -n 4 $DEBUG_TAGS '*:W' >/dev/null 2>&1 &
-        putline "$!" > "$DEBUG_PID"
-        say "debug logcat on ($DEBUG_LOG)"
+    if debug_on; then
+        if [ -z "$_p" ]; then
+            logcat -v time -f "$DEBUG_LOG" -r1024 -n "$DEBUG_KEEP" $DEBUG_TAGS '*:W' >/dev/null 2>&1 &
+            putline "$!" > "$DEBUG_PID"
+            say "debug logcat on ($DEBUG_LOG)"
+        fi
     elif [ -n "$_p" ]; then
         kill "$_p" 2>/dev/null
         rm -f "$DEBUG_PID"
         say "debug logcat off"
     fi
+    debug_trim
     return 0
+}
+
+# debug_trim: the debug logcat's rotated files past DEBUG_KEEP (<DEBUG_LOG>.5 and up) go
+debug_trim() {
+    local _f _n
+    for _f in "$DEBUG_LOG".*; do
+        [ -f "$_f" ] || continue
+        _n=${_f##*.}
+        case "$_n" in ''|*[!0-9]*) continue ;; esac
+        [ "$_n" -gt "$DEBUG_KEEP" ] && rm -f "$_f"
+    done
+    return 0
+}
+
+# debug_files_rm: the debug logcat's and the sampler's files (this package's own log stays)
+debug_files_rm() {
+    rm -f "$DEBUG_LOG" "$DEBUG_LOG".* "$NETSAMPLE" "$NETSAMPLE.1" 2>/dev/null
+    return 0
+}
+
+# data_free_mb: whole MB free on /data, from toolbox df ("/data  9.2G  2.3G  6.9G  4096");
+# empty when it can't be read (then nothing is decided on it)
+RT_DF=${RT_DF:-/system/bin/df}
+RT_DATA=${RT_DATA:-/data}
+rt_mb() {   # rt_mb <toolbox df size: 6.9G, 512.3M, 800.0K>: whole MB (6.9G: 7065)
+    local _v _i _d
+    case "$1" in
+        *G) _v=${1%G} ;;
+        *M) _v=${1%M} ;;
+        *K) putline 0; return 0 ;;
+        *) return 0 ;;
+    esac
+    _i=${_v%%.*}
+    _d=0
+    case "$_v" in *.?) _d=${_v##*.} ;; esac
+    case "$_i$_d" in ''|*[!0-9]*) return 0 ;; esac
+    case "$1" in *G) _i=$((_i * 1024 + _d * 1024 / 10)) ;; esac
+    putline "$_i"
+}
+data_free_mb() {
+    local _l
+    _l=$("$RT_DF" "$RT_DATA" 2>/dev/null) || return 0
+    # the second line, as fields: path size used free blocksize
+    set -- ${_l#*"$NL"}
+    [ "$1" = "$RT_DATA" ] && rt_mb "$4"
+    return 0
+}
+
+# disk_check: under DEBUG_MIN_FREE_MB free on /data, the debug logcat and the sampler stop and
+# their files go (LOWDISK set, kept across boots); they come back once there's room again.
+# This package's own log is only a few KB a boot (log_cap holds it).
+disk_check() {
+    local _f
+    _f=$(data_free_mb)
+    [ -n "$_f" ] || return 0
+    if [ "$_f" -lt "$DEBUG_MIN_FREE_MB" ]; then
+        [ -f "$LOWDISK" ] && return 0
+        : > "$LOWDISK"
+        say "/data has $_f MB free (under $DEBUG_MIN_FREE_MB): debug logging stopped, its files removed"
+        debug_logcat
+        debug_files_rm
+    elif [ -f "$LOWDISK" ]; then
+        rm -f "$LOWDISK"
+        say "/data has $_f MB free again: debug logging back on (unless turned off)"
+    fi
+    return 0
+}
+
+# log_cap: this package's own log past LOG_MAX_KB becomes <LOG>.old (the one before goes). It
+# also moves to .old at each service start. Size from toolbox ls -l ("-rw-r--r-- root root
+# 1234 date time name"); another ls's layout gives no size and nothing moves.
+LOG_MAX_KB=${LOG_MAX_KB:-256}
+RT_LS=${RT_LS:-ls}
+log_cap() {
+    local _l
+    [ -f "$LOG" ] || return 0
+    _l=$("$RT_LS" -l "$LOG" 2>/dev/null) || return 0
+    set -- $_l
+    case "$4" in ''|*[!0-9]*) return 0 ;; esac
+    [ "$4" -gt $((LOG_MAX_KB * 1024)) ] || return 0
+    mv "$LOG" "$LOG.old" 2>/dev/null
+    say "log over $LOG_MAX_KB KB: the earlier lines are in $LOG.old"
 }
 
 SYSNET=${SYSNET:-/sys/class/net}
@@ -158,7 +268,7 @@ net_untune() {
     return 0
 }
 
-# netsample <parent pid>: while debug logging is on and the service runs, every 5 s: the USB
+# netsample <parent pid>: while debug logging is on (debug_on) and the service runs, every 5 s: the USB
 # Wi-Fi interfaces' counters, the kernel's per-CPU backlog drops (softnet_stat, 2nd column),
 # TCP/UDP counters and the load. Every 30 s: the dongle driver's view of each station (rates,
 # QoS/HT/aggregation, signal, its receive drop reasons), TCP extended counters, the established
@@ -234,7 +344,7 @@ ns_ping() {   # the hotspot clients the head unit has talked to lately (ARP, com
 netsample() {
     local _parent=$1 _n=0 _once="" _f
     [ -f "$NETSAMPLE" ] && mv "$NETSAMPLE" "$NETSAMPLE.1" 2>/dev/null
-    while kill -0 "$_parent" 2>/dev/null && [ ! -f "$NODEBUG_FLAG" ] && [ -z "$DEBUG_STOP" ]; do
+    while kill -0 "$_parent" 2>/dev/null && debug_on; do
         if [ $_n -ge 360 ]; then
             mv "$NETSAMPLE" "$NETSAMPLE.1" 2>/dev/null
             _n=0
@@ -466,7 +576,7 @@ txp_txstat() {   # txp_txstat <dir>: the driver's TX counters on one line
     putline "${_out# }"
 }
 txp_sample() {   # into the netsample file: the receive report per antenna path (phydm bbinfo)
-    [ -f "$NODEBUG_FLAG" ] && return 0
+    debug_on || return 0
     {
         putline "-- $1 txpath $2: phydm bbinfo"
         putline "bbinfo" > "$1/odm/cmd" 2>/dev/null && cat "$1/odm/cmd" 2>/dev/null
@@ -698,7 +808,7 @@ tune_ctl() {
 # netsample_ctl: keep one sampler running beside the service while debug logging is on
 NETSAMPLE_PID=""
 netsample_ctl() {
-    [ -f "$NODEBUG_FLAG" ] && return 0
+    debug_on || return 0
     [ -n "$NETSAMPLE_PID" ] && kill -0 "$NETSAMPLE_PID" 2>/dev/null && return 0
     netsample "$$" &
     NETSAMPLE_PID=$!
