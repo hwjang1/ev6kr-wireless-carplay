@@ -1,7 +1,7 @@
 {
   "id": "wireless-carplay-kr",
   "name": "Wireless CarPlay (EV6 KR, USB Wi-Fi)",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "hmgapi": ">=1.0.0",
   "authors": [
     "VysseCodes",
@@ -60,6 +60,7 @@
     "entry": "hmgapi.mods.wireless.Wireless",
     "points": {
       "framework.context_impl.start_service": "replace",
+      "framework.hkmc_loader.automotive_service": "observe",
       "framework.navigation_cluster.update_tbt_info": "replace",
       "framework.navigation_cluster.update_tbt_sub_info": "replace",
       "framework.navigation_cluster.update_tbt_sub_info_b": "replace",

@@ -4,7 +4,8 @@ package hmgapi.mods.wireless.dipo;
  * Song info for wireless CarPlay.
  *
  * From Korea Projection's HMG-API fork (github.com/StopDragon/HMG-API, branch korea-build,
- * commit 577434c, AGPL-3.0), unchanged apart from this comment.
+ * commit 577434c, AGPL-3.0). Changed here: a name for the log lines, so the same start logic
+ * also starts the phone's call state updates (mod 0.2.1, Bridge.CALL_STATE).
  *
  * DiPO starts the phone's NowPlaying updates (and its telephony ones) only for a USB
  * session: its setStartiAP2Service skips them when the transport is wireless (stock
@@ -17,7 +18,8 @@ package hmgapi.mods.wireless.dipo;
  * The iAP2 server works on its current session's handle (as for route guidance) and sends
  * the updates to every listener that takes them, DiPO's included. No stop: the server's
  * handle goes with the session, and DiPO's own stop is skipped on wireless too.
- * Telephony stays as it is (DiPO's call screens have their own path).
+ * Call state (mod 0.2.1, setting call_state): the same way, a second instance starts the
+ * phone's call state updates, which DiPO's call button handling needs (see Bridge).
  *
  * The state is kept here, apart from Bridge, so the host test needs no Android.
  */
@@ -36,6 +38,16 @@ final class NowPlaying {
 
     private boolean started;
     private int session;
+    /** what the log lines call it */
+    final String name;
+
+    NowPlaying() {
+        this("NowPlaying");
+    }
+
+    NowPlaying(String name) {
+        this.name = name;
+    }
 
     /**
      * DiPO's listener got notification what. True (once per channel session) when the mod
@@ -71,7 +83,7 @@ final class NowPlaying {
         if (!cpClient || !current(s)) return "";
         String why;
         try {
-            if (server.start()) return "NowPlaying started for the CarPlay-channel session (try " + tryNo + ")";
+            if (server.start()) return name + " started for the CarPlay-channel session (try " + tryNo + ")";
             why = "refused";
         } catch (Throwable t) {
             why = "failed: " + t;
@@ -81,6 +93,6 @@ final class NowPlaying {
             // the next identification of this session (if any) may start it again
             if (s == session) started = false;
         }
-        return "NowPlaying not started (" + why + ", " + TRIES + " tries)";
+        return name + " not started (" + why + ", " + TRIES + " tries)";
     }
 }

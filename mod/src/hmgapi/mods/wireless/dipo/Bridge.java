@@ -265,6 +265,8 @@ final class Bridge {
             sCpClient = false;
             sCpConnected = false;
             NOW_PLAYING.reset();
+            CALL_STATE.reset();
+            sCallState = false;
             synchronized (sPendingIn) {
                 sPendingIn.clear();
             }
@@ -287,7 +289,47 @@ final class Bridge {
         boolean drop = sCpClient && (what == NOTI_IDENTIFICATION_ACCEPTED || what == NOTI_TRANSPORT_IDENTIFIER);
         if (drop) log("DiPO: dropping iAP2 noti " + what + " from the CarPlay-channel session");
         if (drop && NOW_PLAYING.due(Dipo.nowPlaying, sCpClient, what)) startNowPlaying(NOW_PLAYING.session(), 1);
+        if (drop && CALL_STATE.due(Dipo.callState, sCpClient, what)) startCallState(CALL_STATE.session(), 1);
         return drop;
+    }
+
+    /**
+     * Call state on wireless (setting call_state, mod 0.2.1): DiPO starts the phone's call
+     * state and telephony updates only on USB, in the same setStartiAP2Service branch as
+     * NowPlaying. Without them its caller list stays empty, so the steering wheel's call
+     * button sends HookSwitch ("no call") during a call, which the iPhone takes as hold
+     * (EV6 KR, 2026-11-10), where a USB session sends Drop (end). Started the NowPlaying way.
+     */
+    static final NowPlaying CALL_STATE = new NowPlaying("call state updates");
+    /** the call state updates run for this CarPlay-channel session (DiPO's caller list can be trusted) */
+    static volatile boolean sCallState;
+
+    private static void startCallState(final int session, final int tryNo) {
+        handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                final IIap2Service s = sIap2;
+                final String[] updates = { null };
+                String r = CALL_STATE.attempt(session, tryNo, sCpClient, new NowPlaying.Server() {
+                    @Override
+                    public boolean start() throws Exception {
+                        if (s == null) return false;
+                        if (!s.Iap2SvcTelephonyStartCallState()) return false;
+                        try {
+                            updates[0] = s.Iap2SvcTelephonyStartUpdates() ? "telephony updates too" : "telephony updates refused";
+                        } catch (Throwable t) {
+                            updates[0] = "telephony updates failed: " + t;
+                        }
+                        return true;
+                    }
+                });
+                if (r == null) startCallState(session, tryNo + 1);
+                else if (!r.isEmpty()) {
+                    if (updates[0] != null) sCallState = true;
+                    log(r + (updates[0] == null ? "" : ", " + updates[0]));
+                }
+            }
+        }, NowPlaying.DELAY_MS + 200);
     }
 
     /** song info on wireless: DiPO asks for it only on USB (see NowPlaying) */
@@ -314,6 +356,8 @@ final class Bridge {
     static void startCpClient(final String why) {
         if (sCpClient) return;
         NOW_PLAYING.reset();
+        CALL_STATE.reset();
+        sCallState = false;
         sCpClient = true;
         sCpConnected = false;
         final String addr = sAddr;

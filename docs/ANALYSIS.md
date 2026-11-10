@@ -869,3 +869,52 @@ HMG-API 모드는 root 서비스(`"services"`, 부팅 시 시작, 감시·재시
   - 모드는 코드 변경 없이 버전만 0.2.0으로 올렸습니다. 독립 구성 `usb-hotspot-kr`도 같은 공용 코드를 써서 0.1.3으로 올렸습니다(릴리스에는 넣지 않음).
   - 시험: `tests/apsync-test.sh`, `tests/hotspot-test.sh` 모두 통과(sh, dash, mksh). 새 항목은 기본 꺼짐, 플래그로 켜고 끄기, 0.1.x `.nodebug` 정리, 제거 시 `.debug` 삭제입니다.
   - 진단을 끈 기본 상태는 차량 밖 시험으로만 확인했습니다. 켠 상태의 동작은 이번 0.1.13 수집으로 확인했습니다.
+
+## 43. 계기판 곡 정보, 통화·음성 버튼, 음악 자동 재생 (2026-11-10, 모드 0.2.1)
+
+순정 코드(HKMC_DiPO 260902, automotive-service)와 지금까지의 차량 로그로 찾은 원인과 바꾼 점입니다. 모두 설정으로 끌 수 있고, 재시작 뒤 적용됩니다.
+
+- **계기판 곡 팝업이 제목만 보임 (`cluster_artist`)**
+  - system_server의 `ClusterService.updateClusterWithArtistInfo(mode, …, 제목, 아티스트, …)`가 제목과 아티스트를 HUD 패킷(`TP_TxHandleCon_H_UHUD_202`)으로 보내고, 계기판에는 `updateFilenameDelayed(mode, 제목)`로 제목만 보냅니다(11-09 로그의 `updateClusterWithArtistInfo::mode = DIPO`, `updateFileNameWithArtist`, `updateFilename`).
+  - 카플레이(DIPO, 0x73)일 때 계기판으로 가는 제목만 "아티스트 - 제목"으로 바꿉니다(최대 63자, `ClusterText`). HUD는 그대로입니다. automotive-service가 올라올 때 훅을 겁니다(HMG-API 버튼 기능과 같은 지점 `framework.hkmc_loader.automotive_service`).
+- **통화 중 핸들 통화 버튼이 보류가 됨 (`call_state`)**
+  - DiPO의 통화 버튼 처리(`DipoService` 정적 `a(svc, action, flags)`)는 버튼을 뗄 때 통화 목록의 상태로 명령을 고릅니다(통화 상태 1=통화 중, 2=보류, 3=벨·발신, 0=없음).
+
+    | 상태 | 짧게 | 길게 |
+    |---|---|---|
+    | 없음 | HookSwitch | HookSwitch |
+    | 수신 벨 | HookSwitch(받기) | Drop(거절) |
+    | 발신 중 | Drop(취소) | Drop |
+    | 통화 중 | Drop(끊기) | Drop |
+    | 보류 | HookSwitch | HookSwitch |
+  - 그런데 무선에서는 `setStartiAP2Service`가 NowPlaying과 함께 `Iap2SvcTelephonyStartCallState`, `Iap2SvcTelephonyStartUpdates`도 건너뜁니다(USB 전용). 통화 목록이 비어 "없음" 줄의 HookSwitch가 나가고, iPhone은 통화 중 HookSwitch를 보류로 처리합니다. 지금까지의 로그에 `onReceiveCallStatus`가 한 번도 없습니다.
+  - NowPlaying처럼 무선 세션의 식별 직후 모드가 통화 상태와 통화 업데이트를 시작합니다(`Bridge.CALL_STATE`).
+- **통화 없을 때 통화 버튼으로 카플레이 전화 (`call_key_phone`)**
+  - 통화가 없으면 순정은 카플레이 화면일 때 HookSwitch, 아니면 "통화 중 아님" 알림입니다.
+  - 통화 상태 업데이트가 돌고 있고, 통화가 없을 때(카플레이 통화·TMU 통화 아님, 통화 목록 비어 있음) 짧게 누르면 `DipoActivity`를 `CarPlayMode=2`로 엽니다. DiPO 자신의 전화 표시(`updateDisplay` 2: 화면을 가져온 뒤 `requestUI("mobilephone:")`)와 같습니다. 통화 중과 길게 누름은 순정 그대로입니다.
+- **음성 버튼: 카플레이 연결 중 짧게 눌러도 시리 (`siri_key`)**
+  - system_server의 `ModeKeyDispatcher.determineWhichAppToSendPttKey`는 카플레이가 연결되어 있고 시리와 순정 음성인식이 둘 다 꺼져 있으면 `SEND_PTT_TO_VR_CARPLAYSIRI`(2, 둘 다)를 고릅니다. 그래서 짧게 누르면 순정 음성인식이 켜지고, DiPO는 시리를 준비(`Prewarm`)만 합니다. 길게 누르면 시리입니다.
+  - 이 값을 `SEND_PTT_TO_CARPLAYSIRI_ONLY`(0)로 바꾸고, DiPO의 음성 키 처리(`DipoService.l(action, flags)`)에서 누를 때 시리 `ButtonDown`, 뗄 때 `ButtonUp`을 보냅니다. 짧게 누르면 시리가 열리고, 길게 누르면 누르는 동안 말하기입니다. 카플레이가 연결되지 않았거나 순정 음성인식이 이미 켜져 있으면 그대로입니다.
+- **카플레이 연결 때 음악이 자동으로 재생되지 않음 (`audio_resume`)**
+  - 11-10 18:48:11 시동을 끌 때 DiPO가 ACC OFF 대기 모드(`onPowerStatusChanged() AccStatus.DELAYMODE`)에서 소리 출력을 빌려오고(`borrowID ACC_OFF_DELAYD_MODE`), 그 소유자 변경을 "마지막 소리는 카플레이가 아님"으로 저장했습니다(`setCpAudioLastMode value = false`, `DipoService.C(false)`).
+  - 그다음 연결은 `updateInitAppState() Audio TAKE: UserInitiated`라서 사용자가 재생을 눌러야만 iPhone이 소리를 가져갑니다(20:29 부팅에서 확인). 마지막 소리가 카플레이로 남아 있던 08:14 연결은 `NiceToHave`로 바로 이어받았습니다.
+  - 차가 ACC OFF 상태일 때(`MicomPowerManager.getPowerStatus()` 6·7·0xff) 들어오는 `C(false)`만 저장하지 않습니다. 시동이 켜진 채 다른 음원으로 바꾸면 그대로 저장됩니다.
+- **시험:** `tests/clustertext-test.sh`, `tests/nowplaying-test.sh` 통과, 빌드 통과. DiPO 메서드는 이름(난독화된 이름 포함)과 시그니처로 찾고, 없으면 그 기능만 꺼지고 로그를 남깁니다.
+- **차량 확인 (11-10 22:47 부팅, 22:51 수집)**
+  - 훅 다섯 개가 모두 걸렸고 오류·크래시는 없습니다.
+  - 계기판: `cluster: CarPlay song popup shows "artist - title"`(22:48:28).
+  - 통화 상태: `Iap2SvcTelephonyStartCallState`는 true, `Iap2SvcTelephonyStartUpdates`는 false(거절)였지만 통화 상태는 들어왔습니다(`onReceiveCallStatus` 2→3→4→0).
+  - 통화 버튼:
+    - 통화 없음: 카플레이 전화 열림(22:48:37).
+    - 수신 벨 + 짧게: `HookSwitch`, 받기(22:49:53, 상태 3→4).
+    - 통화 중 + 짧게: `Drop`, 끊기(22:49:56).
+    - 수신 벨 + 길게: `Drop`, 거절(22:50:13).
+  - 음성 버튼:
+    - 짧게: `ButtonDown`/`ButtonUp`으로 시리가 열림(22:48:43).
+    - 시리가 열린 채 다시 짧게: 시리가 닫힘(iPhone 동작).
+    - 길게: 누르는 동안 말하기(22:49:17–20, 길게 누름 플래그 이벤트는 모드가 삼켜 `ButtonDown`이 두 번 나가지 않음).
+    - 순정 음성인식은 켜지지 않았습니다.
+  - 음악: 이 부팅의 첫 연결은 이전 버전이 저장한 값 때문에 `Audio TAKE: UserInitiated`였습니다. 카플레이 음악을 켜자 `setCpAudioLastMode value = true`로 저장됐고(22:48:26), 같은 부팅의 다음 연결은 `NiceToHave`였습니다. 시동 끄기 때의 `C(false)` 차단은 아직 차에서 확인하지 못했습니다(이 시험에 ACC OFF가 없음).
+  - 블루투스 자동 연결 재시도(`BTCMSM_HANDLE_AUTOCONNECTION_IN_DISCONNECTED`, 5초마다)는 근처에 없는 다른 등록 기기를 찾는 순정 동작이고 0.2.1과 관계없습니다.
+  - 사용자가 화면으로 확인: 계기판 팝업의 "아티스트 - 제목", 통화 버튼, 음성 버튼, 순정 통화 팝업 모두 정상.
+- **배포:** v0.2.1 정식 릴리스(카플레이 모드 0.2.1, 동기화 패키지는 0.2.0 그대로). 음악 자동 재생(`audio_resume`)은 차량 확인 전으로 적고 기본으로 켜 두었습니다. 시동을 껐다 켜는 시험에서 `CarPlay audio given up at ACC off: kept`와 `Audio TAKE: NiceToHave`를 확인할 예정입니다.
