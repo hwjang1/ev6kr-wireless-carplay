@@ -32,11 +32,11 @@
 ## 파일
 | 위치 | 내용 |
 |---|---|
-| `/data/hmgapi/run/usb-hotspot-kr/usbap/` | `usbap.log`(.old), `usbap.tune`, `usbap.netsample.txt`, `usbap.logcat.txt*`, `usbap.nodebug` |
+| `/data/hmgapi/run/usb-hotspot-kr/usbap/` | `usbap.log`(.old), `usbap.tune`, `usbap.netsample.txt`, `usbap.logcat.txt*`, `usbap.debug`(디버그 기록 켜짐, 0.1.3부터) |
 | `/data/hmgapi/logs/usb-hotspot-kr/usbap.log` | 서비스 출력 (HMG-API가 보관) |
 | `/data/local/tmp/ev6kr_usbap/` | `hostapd.conf`(600), `hostapd.pid`, `hostapd.log`, `iface`, `insmod.log`, `dhcp/`(dnsmasq 로그·임대) |
 
-trylog 스틱(4판)이 이 파일들과 커널 설정, `ip rule`, `iptables -S`를 모읍니다. `EV6KR-TUNE.txt`와 `EV6KR-DEBUG-OFF/ON`도 이 모드의 파일에 적용됩니다(ev6kr.usbap.sync가 없을 때).
+trylog 스틱(4판)이 이 파일들과 커널 설정, `ip rule`, `iptables -S`를 모읍니다. `EV6KR-TUNE.txt`와 `EV6KR-DEBUG-ON/OFF`도 이 모드의 파일에 적용됩니다(ev6kr.usbap.sync가 없을 때). 디버그 기록(logcat 파일, netsample)은 0.1.3부터 기본으로 꺼져 있고 `EV6KR-DEBUG-ON`으로 켭니다.
 
 ## 방화벽
 모드는 `rtwlan+`의 송수신 허용 규칙을 선언합니다. 다만 HMG-API의 핫스팟 별칭(`wlan0`)이 아니라서 **차 주인의 허용이 있어야** 들어갑니다(`/data/hmgapi/settings/hmgapi.json`의 `"overrides": {"allow_network": ["usb-hotspot-kr"]}`).

@@ -17,8 +17,9 @@
 #            logcat, TX path/power tuning; left to ev6kr.usbap.sync when that is installed
 #
 # Files: $DATA (HMGAPI_DATA): usbap.log(.old), usbap.tune, usbap.netsample.txt, usbap.logcat.txt,
-# usbap.nodebug, backup/. $RUN (/data/local/tmp/ev6kr_usbap, readable by DiPO, where the CarPlay
-# mod looks): hostapd.conf (600), hostapd.pid/.log, iface, insmod.log, dhcp/ (dnsmasq's).
+# usbap.debug (debug logging on, from the trylog stick's EV6KR-DEBUG-ON), backup/.
+# $RUN (/data/local/tmp/ev6kr_usbap, readable by DiPO, where the CarPlay mod looks):
+# hostapd.conf (600), hostapd.pid/.log, iface, insmod.log, dhcp/ (dnsmasq's).
 # The unit's shell is mksh with toolbox only (see scripts/rtwlan.sh).
 MOD_DIR=${MOD_DIR:-${HMGAPI_MOD_DIR:-/data/hmgapi/mods/usb-hotspot-kr}}
 DATA=${DATA:-${HMGAPI_DATA:-/data/hmgapi/run/usb-hotspot-kr/usbap}}
@@ -355,6 +356,7 @@ usbap_main() {
     [ -f "$LOG" ] && mv "$LOG" "$LOG.old" 2>/dev/null
     drv_files
     say "usb-hotspot-kr start (pid $$), driver ${KO##*/}"
+    debug_start_cleanup
     guard_check
     stale_cleanup
     # the driver first, so it's there when the dongle shows up

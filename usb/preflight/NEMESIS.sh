@@ -8,7 +8,7 @@ R=$(pwd)/EV6KR-PREFLIGHT.txt
 say() { echo "$1" >> "$R"; }
 verdict() { say "[$1] $2"; }
 
-say "ev6kr-preflight 1"
+say "ev6kr-preflight 2"
 say "date $(date)"
 P=$(getprop ro.build.product)
 say "ro.build.product=$P"
@@ -67,6 +67,18 @@ else
     verdict WARN "no /data/misc/wifi/softap.conf: the stock CarPlay SSID/password haven't been made yet"
 fi
 grep -l 'security.unece' /system/etc/permissions/*.xml >/dev/null 2>&1 && verdict STOP "this unit encrypts the hotspot passwords (security.unece): the sync package can't read them"
+
+# free space on /data (toolbox df: "/data  9.2G  2.3G  6.9G  4096"). The packages' logs take ~7 MB
+# at most; the sync package's debug logging stops under 100 MB free.
+set -- $(/system/bin/df /data 2>/dev/null | grep '^/data ')
+_low="free some space first: the sync package's debug logging stops under 100 MB free"
+case "$4" in
+    *G) verdict OK "/data: $4 free of $2" ;;
+    *M) _n=${4%M}; _n=${_n%%.*}
+        if [ "${_n:-0}" -ge 100 ]; then verdict OK "/data: $4 free of $2"; else verdict WARN "/data: only $4 free of $2: $_low"; fi ;;
+    *K) verdict WARN "/data: only $4 free of $2: $_low" ;;
+    *) verdict INFO "/data free space unknown (no toolbox df)" ;;
+esac
 
 say ""
 say "--- props"

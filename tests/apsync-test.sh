@@ -54,9 +54,10 @@ cp "$CONF" "$W/orig.conf"
 # net.core stand-ins (the unit's values)
 mkdir -p "$W/sysctl" && echo 1000 > "$W/sysctl/netdev_max_backlog" && echo 300 > "$W/sysctl/netdev_budget"
 
+RUN_ENV=""   # extra NAME=value words for the next run (set it, run, clear it)
 run() {   # run <script> [args]: one pass, the unit's paths moved under $W
     env EV6KR_TEST_PATH="$W/bin:$PATH" NEMESIS_DIR="$W/nemesis" APP_DIR="$W/nemesis/apps/ev6kr.usbap.sync" \
-        USB_TMP="$W/usbtmp" SOFTAP="$W/softap.conf" PROC="$W/proc" SYSCTL_CORE="$W/sysctl" NEMESIS_STAGE="$W/stage" APSYNC_ONCE=1 $SH "$@"
+        USB_TMP="$W/usbtmp" SOFTAP="$W/softap.conf" PROC="$W/proc" SYSCTL_CORE="$W/sysctl" NEMESIS_STAGE="$W/stage" APSYNC_ONCE=1 $RUN_ENV $SH "$@"
 }
 S=$W/nemesis/apps/ev6kr.usbap.sync
 
@@ -113,9 +114,13 @@ run "$S/svc/apsync.sh"
 cmp -s "$CONF" "$W/sta.conf" && ok "STA mode left alone" || no "STA mode changed"
 cp "$W/before-sta.conf" "$CONF"
 
-# debug logcat: on by default, once (a running logcat is left alone), off with the nodebug flag
-sleep 1
-grep -q -- "-f $W/nemesis/ev6kr.usbap.sync.logcat.txt -r 1024 -n 4 CarPlay_:V .*Iap2Service:V .*HfDeviceBTCMSppApi:V .*NavigationCluster:S \*:W\$" "$W/logcat.log" \
+# debug logging: off by default (0.2.0); on with the debug flag, once (a running logcat is left
+# alone), off again without it
+[ ! -s "$W/logcat.log" ] && grep -q "debug logging off (an EV6KR-DEBUG-ON file on the trylog stick turns it on)" "$W/nemesis/ev6kr.usbap.sync.log" \
+    && ok "debug logging off by default" || no "debug default: $(cat "$W/logcat.log" 2>/dev/null)"
+: > "$W/nemesis/ev6kr.usbap.sync.debug"
+run "$S/svc/apsync.sh"; sleep 1
+grep -q -- "-f $W/nemesis/ev6kr.usbap.sync.logcat.txt -r1024 -n 4 CarPlay_:V .*Iap2Service:V .*HfDeviceBTCMSppApi:V .*NavigationCluster:S \*:W\$" "$W/logcat.log" \
     && ok "debug logcat started: CarPlay/iAP2/BT tags, others warnings only" || no "debug logcat: $(cat "$W/logcat.log" 2>/dev/null)"
 read -r LPID < "$W/nemesis/ev6kr.usbap.sync.logcat.pid"
 mkdir -p "$W/proc/$LPID" && echo logcat > "$W/proc/$LPID/comm"
@@ -128,14 +133,65 @@ run "$S/svc/apsync.sh"; sleep 1
 # stopping kills the recorded pid: give it one of ours (never a pid the mock left behind)
 sleep 60 & DPID=$!
 echo "$DPID" > "$W/nemesis/ev6kr.usbap.sync.logcat.pid"; mkdir -p "$W/proc/$DPID" && echo logcat > "$W/proc/$DPID/comm"
-: > "$W/nemesis/ev6kr.usbap.sync.nodebug"
+rm -f "$W/nemesis/ev6kr.usbap.sync.debug"
 run "$S/svc/apsync.sh"; sleep 1
 if [ ! -f "$W/nemesis/ev6kr.usbap.sync.logcat.pid" ] && ! kill -0 "$DPID" 2>/dev/null && grep -q "debug logcat off" "$W/nemesis/ev6kr.usbap.sync.log"; then
-    ok "nodebug flag stops the logcat"
+    ok "debug flag removed: the logcat stops"
 else
-    no "nodebug flag"; kill "$DPID" 2>/dev/null || true
+    no "debug flag removed"; kill "$DPID" 2>/dev/null || true
 fi
-rm -f "$W/nemesis/ev6kr.usbap.sync.nodebug"
+: > "$W/nemesis/ev6kr.usbap.sync.debug"
+
+# log caps and disk space (0.1.13)
+D=$W/nemesis/ev6kr.usbap.sync.logcat.txt
+NSF=$W/nemesis/ev6kr.usbap.sync.netsample.txt
+LG=$W/nemesis/ev6kr.usbap.sync.log
+debug_files() { for n in "" 1 2 3 4 5 6 7 8 9 10; do : > "$D${n:+.$n}"; done; : > "$NSF"; : > "$NSF.1"; }
+logcat_files() { (cd "$W/nemesis" && ls | grep -c 'logcat\.txt') || true; }
+# the unit's logcat kept 10 rotated files: the service keeps 4 whatever logcat does
+debug_files
+run "$S/svc/apsync.sh"; sleep 1
+[ -f "$D" ] && [ -f "$D.4" ] && [ ! -f "$D.5" ] && [ ! -f "$D.10" ] && [ -f "$NSF.1" ] \
+    && ok "debug logcat: rotated files past 4 removed (current and .1-.4 kept)" || no "debug trim: $(logcat_files) files"
+# toolbox df sizes to whole MB; df missing or unreadable decides nothing
+RMB=$(env EV6KR_TEST_PATH="$W/bin:$PATH" NEMESIS_DIR="$W/nemesis" APP_DIR="$S" PROC="$W/proc" \
+    $SH -c '. "$1/scripts/common.sh"; for v in 6.9G 512.3M 800.0K 12G 7 x.yM; do putraw "$v=$(rt_mb "$v") "; done; putraw "none=$(RT_DF=/nonexistent data_free_mb)"' sh "$S")
+[ "$RMB" = "6.9G=7065 512.3M=512 800.0K=0 12G=12288 7= x.yM= none=" ] && ok "free space: toolbox df sizes read as MB, no df reads as unknown" || no "rt_mb: $RMB"
+mkdir -p "$W/df"
+printf '#!/bin/sh\nprintf "Filesystem               Size     Used     Free   Blksize\\n%%-20s  %%s  %%s  %%s   4096\\n" "$1" 3.9G 3.8G "%s"\n' 80.5M > "$W/df/low"
+printf '#!/bin/sh\nprintf "Filesystem               Size     Used     Free   Blksize\\n%%-20s  %%s  %%s  %%s   4096\\n" "$1" 3.9G 2.7G "%s"\n' 1.2G > "$W/df/ok"
+chmod 755 "$W/df/low" "$W/df/ok"
+# under 100 MB free: the logcat stops, the debug files go, nothing new starts; the flag stays
+debug_files
+sleep 60 & DPID=$!
+echo "$DPID" > "$W/nemesis/ev6kr.usbap.sync.logcat.pid"; mkdir -p "$W/proc/$DPID" && echo logcat > "$W/proc/$DPID/comm"
+: > "$W/logcat.log"
+RUN_ENV="RT_DF=$W/df/low"; run "$S/svc/apsync.sh"; RUN_ENV=""; sleep 1
+if [ -f "$W/nemesis/ev6kr.usbap.sync.lowdisk" ] && [ ! -f "$D" ] && [ ! -f "$D.1" ] && [ ! -f "$NSF" ] && [ ! -f "$NSF.1" ] \
+    && ! kill -0 "$DPID" 2>/dev/null && [ ! -s "$W/logcat.log" ] && grep -q "/data free: 80 MB" "$LG" \
+    && grep -q "/data has 80 MB free (under 100): debug logging stopped, its files removed" "$LG"; then
+    ok "low disk (80 MB free): debug logcat stopped, its files and the samples removed"
+else
+    no "low disk: flag $([ -f "$W/nemesis/ev6kr.usbap.sync.lowdisk" ] && echo set), $(logcat_files) logcat files, $(cat "$W/logcat.log")"; kill "$DPID" 2>/dev/null || true
+fi
+RUN_ENV="RT_DF=$W/df/low"; run "$S/svc/apsync.sh"; RUN_ENV=""; sleep 1
+[ ! -s "$W/logcat.log" ] && [ ! -f "$D" ] && ok "low disk: still off at the next start" || no "low disk: logcat back while low"
+RUN_ENV="RT_DF=$W/df/ok"; run "$S/svc/apsync.sh"; RUN_ENV=""; sleep 1
+[ ! -f "$W/nemesis/ev6kr.usbap.sync.lowdisk" ] && [ -s "$W/logcat.log" ] && grep -q "/data has 1228 MB free again" "$LG" \
+    && ok "room again (1.2 GB): debug logging back on" || no "low disk recovery: $(cat "$W/logcat.log")"
+# own log: over 256 KB it moves to .old (toolbox ls -l layout); another ls's layout moves nothing
+grep -q "log over" "$LG" && no "log moved with this machine's ls" || ok "own log: another ls -l layout gives no size, nothing moved"
+printf '#!/bin/sh\necho "-rw-rw-rw- root     root       300000 2026-11-10 09:00 ${2##*/}"\n' > "$W/df/ls-big"; chmod 755 "$W/df/ls-big"
+RUN_ENV="RT_LS=$W/df/ls-big"; run "$S/svc/apsync.sh"; RUN_ENV=""; sleep 1
+grep -q "log over 256 KB: the earlier lines are in $LG.old" "$LG" && grep -q "apsync start" "$LG.old" \
+    && ok "own log over 256 KB moved to .old" || no "log cap: $(cat "$LG")"
+# debug logging off: a start (a boot) removes the debug files left from before, and 0.1.x's
+# off switch (an update from 0.1.13 with debug on: its files go, as with the switch)
+debug_files; rm -f "$W/nemesis/ev6kr.usbap.sync.debug"; : > "$W/nemesis/ev6kr.usbap.sync.nodebug"
+run "$S/svc/apsync.sh"; sleep 1
+[ "$(logcat_files)" = 0 ] && [ ! -f "$NSF" ] && [ ! -f "$NSF.1" ] && [ ! -f "$W/nemesis/ev6kr.usbap.sync.nodebug" ] \
+    && ok "debug off: the start removes the old debug files and 0.1.x's nodebug flag" || no "debug off cleanup: $(logcat_files) left, $(ls "$W/nemesis" | grep debug)"
+: > "$W/nemesis/ev6kr.usbap.sync.debug"
 
 # hotspot watchdog: a dongle bound to its driver, the newest interface rtwlan1, hostapd still on the
 # gone rtwlan0 (no netdev device links on this driver build: binding and ifindex are what count)
@@ -212,13 +268,13 @@ grep -q '^tcp 012BA8C0:1B58 7B2BA8C0:D2F0 q=00000000:0001F400 retr=00000002$' "$
 grep -q -- '-s 1400 192.168.43.123' "$W/ping.log" && ! grep -q -E '192.168.43.(99|77)|10.0.0.1' "$W/ping.log" && grep -q '^4 packets transmitted, 3 received' "$NS" \
     && grep -q '^rtt min' "$NS" && ! grep -q '^PING' "$NS" \
     && ok "sampler: pings the hotspot clients in ARP, keeps the summary" || no "sampler ping: $(cat "$W/ping.log" 2>/dev/null)"
-: > "$W/nemesis/ev6kr.usbap.sync.nodebug"
+rm -f "$W/nemesis/ev6kr.usbap.sync.debug"
 sleep 30 & SPID=$!
 env EV6KR_TEST_PATH="$W/bin:$PATH" NEMESIS_DIR="$W/nemesis" APP_DIR="$S" USB_TMP="$W/usbtmp" PROC="$W/proc" SYSMODULE="$W/sysmod" NETSAMPLE_EVERY=1 \
     $SH -c '. "$1/scripts/common.sh"; netsample "$2"' sh "$S" "$SPID"
 kill "$SPID" 2>/dev/null || true
-[ -f "$NS.1" ] && [ ! -f "$NS" ] && ok "sampler: the last file kept as .1, nothing sampled with nodebug" || no "sampler nodebug/rotation"
-rm -f "$W/nemesis/ev6kr.usbap.sync.nodebug" "$W/usbtmp/dnsmasq.leases"
+[ -f "$NS.1" ] && [ ! -f "$NS" ] && ok "sampler: the last file kept as .1, nothing sampled with debug off" || no "sampler debug off/rotation"
+: > "$W/nemesis/ev6kr.usbap.sync.debug"; rm -f "$W/usbtmp/dnsmasq.leases"
 
 # dongle tuning: block ack left to the driver by default (usbwifi.hotspot's v5.8.7.1 runs fine
 # with it); refused from the tune file, once; back to the driver's choice from the tune file
@@ -441,18 +497,22 @@ run "$S/bin/sync-now.sh" && grep -q 'Kia_aB3x' "$W/am.log" && ok "app toasts the
 # update: NEMESIS has the new version staged when it runs the old preuninstall -> nothing put back
 cp "$CONF" "$W/before-update.conf"; rm -f "$W/usbtmp/force_restart"
 mkdir -p "$W/stage/ev6kr.usbap.sync" && cp "$S/NEMESIS.data" "$W/stage/ev6kr.usbap.sync/" 2>/dev/null || echo "[nemesis]" > "$W/stage/ev6kr.usbap.sync/NEMESIS.data"
-: > "$W/nemesis/ev6kr.usbap.sync.nodebug"
+debug_files
 run "$S/scripts/preun.sh"
 if cmp -s "$CONF" "$W/before-update.conf" && [ ! -f "$W/usbtmp/force_restart" ] && [ -f "$W/nemesis/backup/ev6kr.usbap.sync/hotspot.keys" ] \
-    && [ "$(cat "$W/sysctl/netdev_max_backlog")" = 5000 ] && [ -f "$W/nemesis/ev6kr.usbap.sync.nodebug" ] && grep -q "for an update" "$W/nemesis/ev6kr.usbap.sync.log"; then
-    ok "update: the hotspot keeps the CarPlay settings, backups and flags stay"
+    && [ "$(cat "$W/sysctl/netdev_max_backlog")" = 5000 ] && [ -f "$W/nemesis/ev6kr.usbap.sync.debug" ] && grep -q "for an update" "$W/nemesis/ev6kr.usbap.sync.log" \
+    && [ -f "$D.4" ] && [ -f "$NSF" ]; then
+    ok "update: the hotspot keeps the CarPlay settings, backups, flags and debug files stay"
 else
     no "update preuninstall changed things"
 fi
-rm -rf "$W/stage" "$W/nemesis/ev6kr.usbap.sync.nodebug"
+rm -rf "$W/stage"
 
-# uninstall: the file is back byte for byte
-run "$S/scripts/preun.sh"
+# uninstall: the file is back byte for byte; the debug files go
+debug_files
+RUN_ENV="NETSAMPLE_EVERY=0"; run "$S/scripts/preun.sh"; RUN_ENV=""
+[ "$(logcat_files)" = 0 ] && [ ! -f "$NSF" ] && [ ! -f "$NSF.1" ] && [ ! -f "$W/nemesis/ev6kr.usbap.sync.debug" ] && [ -f "$LG" ] && grep -q "debug logcat and sampler files removed" "$LG" \
+    && ok "uninstall removes the debug flag, logcat and sampler files (own log stays)" || no "uninstall debug files: $(logcat_files) left; $(ls "$W/nemesis" | tr '\n' ' '); $(tail -3 "$LG")"
 cmp -s "$CONF" "$W/orig.conf" && ok "uninstall restores the original file exactly" || { no "uninstall left changes"; diff "$W/orig.conf" "$CONF" || true; }
 [ "$(cat "$W/sysctl/netdev_max_backlog")" = 1000 ] && [ "$(cat "$W/sysctl/netdev_budget")" = 300 ] && [ "$(cat "$R/rx_ampdu")" = 255 ] \
     && ok "uninstall puts the receive backlog and the block ack setting back" || no "net untune: $(cat "$W/sysctl/netdev_max_backlog")"

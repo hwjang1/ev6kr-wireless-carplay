@@ -126,7 +126,7 @@ us() {
 L=$W/data/usbap.log
 dongle() { mkdir -p "$W/usbdev/1-1/1-1:1.0"; echo 0bda > "$W/usbdev/1-1/idVendor"; echo b812 > "$W/usbdev/1-1/idProduct"; "$W/bin/probe"; }
 unplug() { rm -rf "$W/usbdev/1-1" "$W/drivers/rtl88x2bu/1-1:1.0" "$W/sysnet/rtwlan0"; }
-: > "$W/data/usbap.nodebug"   # the debug logcat and sampler: their own test below
+rm -f "$W/data/usbap.debug"   # the debug logcat and sampler (off by default): their own test below
 
 # usbwifi.hotspot installed: this mod stays off
 mkdir -p "$W/nemesis/apps/usbwifi.hotspot"; dongle
@@ -234,7 +234,7 @@ us 'usbap_pass; usbap_pass'
 rm -f "$W/insmod.fail" "$W/run/insmod.failed"
 
 # the whole service: extras on (no ev6kr.usbap.sync), stopped by HMG-API (TERM) -> everything off
-rm -f "$W/data/usbap.nodebug"; : > "$W/logcat.log"
+: > "$W/data/usbap.debug"; : > "$W/logcat.log"
 env EV6KR_TEST_PATH="$W/bin:$PATH" HMGAPI_MOD_DIR="$M" DATA="$W/data" RUN="$W/run" NEMESIS_DIR="$W/nemesis" \
     SOFTAP="$W/softap.conf" PROC="$W/proc" USB_DEVICES="$W/usbdev" SYSMODULE="$W/sysmod" SYSNET="$W/sysnet" \
     USB_DRIVERS="$W/drivers" SYSCTL_CORE="$W/sysctl" HOSTAPD="$W/bin/hostapd" DNSMASQ="$W/bin/dnsmasq" \
