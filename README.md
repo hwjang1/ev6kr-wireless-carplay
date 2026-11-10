@@ -6,6 +6,7 @@
 - **기존 구성**: NEMESIS 패키지 `usbwifi.hotspot` + 동기화 패키지 `ev6kr.usbap.sync`
 - **독립 구성**: 이 저장소의 HMG-API 모드 `usb-hotspot-kr` 하나(usbwifi.hotspot 불필요, [hotspot/README.md](hotspot/README.md))
 HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)를 국내형 EV6와 USB 동글 핫스팟에 맞게 옮겼습니다.
+다른 차종은 [차량 정보 수집 안내](docs/CARINFO.md)대로 정보를 모아 이슈로 올려 주시면, 대상이 되는지 검토해 답변합니다.
 
 > [!WARNING]
 > **모든 사용은 본인 책임입니다.** 이 저장소는 현대자동차·기아·현대모비스·Telechips·Apple과 관계없는 비공식 개인 프로젝트이며, 어떤 보증도 하지 않습니다.
@@ -39,6 +40,7 @@ HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)
 | [`ev6kr-wireless-carplay-nemesis.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-wireless-carplay-nemesis.zip) | **설치용.** USB 최상위에 풀고 꽂으면 NEMESIS에 두 패키지가 나옵니다([설치 순서](#설치-순서) 5단계). 같은 파일이 버전이 붙은 이름(`ev6kr-wireless-carplay-0.2.0-mod0.2.1-nemesis.zip`)으로도 있습니다 |
 | [`ev6kr-preflight-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-preflight-usb.zip) | 설치 전 점검 USB(1단계) |
 | [`ev6kr-trylog-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-trylog-usb.zip) | 문제가 생겼을 때 로그 수집 USB(8단계) |
+| [`ev6kr-carinfo-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-carinfo-usb.zip) | 다른 차종 지원 요청용 차량 정보 수집 USB([안내](docs/CARINFO.md)) |
 | [`SHA256SUMS.txt`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/SHA256SUMS.txt) | 받은 파일 확인용: `shasum -a 256 -c SHA256SUMS.txt` |
 
 USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 USB 최상위에 풉니다. `packages/` 안의 zip은 풀지 마세요.
@@ -72,6 +74,7 @@ USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 
 | [usb/driver-reset/](usb/driver-reset/) | usbwifi.hotspot을 원래 드라이버(v5.8.7.1)로 되돌리는 USB(덮어쓰기 파일 제거 + 지금 드라이버 보고), 실행 뒤 재부팅 |
 | [usb/wifi-check/](usb/wifi-check/) | 순정 Wi-Fi를 한 번 켜서 내장 Wi-Fi 모듈이 있는지 확인하는 USB(시험용, 결과는 토스트와 `EV6KR-WIFICHECK.txt`, [ANALYSIS 38절](docs/ANALYSIS.md)). 블루투스·USB가 잠시 끊길 수 있어 끝나면 헤드유닛 재시작 |
 | [usb/trylog/](usb/trylog/) | 연결 시도 뒤 로그 수집 USB: `EV6KR-TRYLOG/`(HMG-API 로그, 동기화·진단 로그, USB 핫스팟 로그, 엔진 상태). 휴대폰 이름·주소가 들어갈 수 있어 공개하지 마세요 |
+| [usb/carinfo/](usb/carinfo/) | 다른 차종으로 옮길 수 있는지 보는 정보 수집 USB(읽기 전용, NEMESIS만 필요): `CARINFO-<차종>-<지역>.txt`에 플랫폼, 순정 Wi-Fi 모듈 유무, 카플레이 관련 파일이 EV6 국내형 260902와 같은지(md5)를 적음. 빈 파일 `CARINFO-FILES`를 두면 다른 파일을 분석용으로 복사(제조사 파일이라 공개 금지). 사용법은 [docs/CARINFO.md](docs/CARINFO.md) |
 | [tools/build.sh](tools/build.sh) | 빌드: `dist/`에 NEMESIS 패키지·서명된 모드 생성(`build/`·`dist/`는 저장소에 올리지 않음, 아래 [빌드](#빌드)) |
 | [tests/apsync-test.sh](tests/apsync-test.sh) | `ev6kr.usbap.sync` 차량 밖 시험 |
 | [tests/hotspot-test.sh](tests/hotspot-test.sh) | `usb-hotspot-kr` 서비스 차량 밖 시험 |
@@ -155,7 +158,7 @@ sh tests/nowplaying-test.sh; sh tests/clustertext-test.sh  # 카플레이 모드
 
 ## 알려진 제약과 미확인 사항
 
-- **차량 확인 범위**: 한 대(국내형 EV6, 260902)에서만 확인했습니다. 확인 항목은 맨 위 상태를 보세요.
+- **차량 확인 범위**: 한 대(국내형 EV6, 260902)에서만 확인했습니다. 확인 항목은 맨 위 상태를 보세요. 다른 차종은 [차량 정보 수집 안내](docs/CARINFO.md)를 보세요.
 - **동글**: 정상 동작을 확인한 동글은 ipTIME AX900UA와 AX900MINI입니다. AX900MINI는 사용자가 차에서 확인했고, 칩셋은 아직 로그로 확인하지 않았습니다([40절](docs/ANALYSIS.md)). RTL8812BU 동글 한 개는 송신 체인 불량으로 링크가 무너졌고, 송신 경로·전력·1T2R 같은 소프트웨어 조정으로도 해결되지 않았습니다([29절](docs/ANALYSIS.md)). 다른 RTL8812BU 제품은 시험하지 않았습니다. 5GHz를 지원하지 않는 동글(예: 2.4GHz 전용 AX300급)은 쓸 수 없습니다.
 - **길안내**: 내비 앱이 iAP2 길안내 정보를 보내야 클러스터·HUD에 표시됩니다. T맵과 네이버지도는 확인했습니다. 네이버지도는 앱의 CarPlay 설정(톱니바퀴 → 네비게이션 탭)에서 HUD 스위치를 켜야 보냅니다. 다른 앱은 시험하지 않았습니다.
 - **usbwifi.hotspot 자동 업데이트**: `AUTO_UPDATE=1`(기본)이면 LTE로 GitHub에서 스스로 업데이트합니다. 업데이트 중 핫스팟이 몇 분간 반복해서 다시 만들어진 적이 있습니다([26절](docs/ANALYSIS.md)).
