@@ -13,6 +13,10 @@ public interface IIap2Service extends IInterface {
 
     boolean Iap2SvcStopRouteGuidanceUpdate(String[] components) throws RemoteException;
 
+    boolean Iap2SvcTelephonyStartCallState() throws RemoteException;
+
+    boolean Iap2SvcTelephonyStartUpdates() throws RemoteException;
+
     boolean Iap2SvcTransportReadDone(byte[] data, int length) throws RemoteException;
 
     abstract class Stub extends android.os.Binder implements IIap2Service {

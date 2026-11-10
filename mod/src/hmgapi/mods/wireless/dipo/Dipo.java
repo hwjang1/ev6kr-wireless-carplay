@@ -62,6 +62,8 @@ public final class Dipo {
     static boolean tbt, bridge;
     /** song info on wireless CarPlay (NowPlaying), see NowPlaying */
     static volatile boolean nowPlaying;
+    /** the phone's call state on wireless CarPlay (Bridge.CALL_STATE) */
+    static volatile boolean callState;
     static Handler turnsHandler;
     static CpTurns turns;
     static RgListener rg;
@@ -86,6 +88,10 @@ public final class Dipo {
         tbt = m.settingBoolean("tbt", true);
         bridge = m.settingBoolean("bridge", true);
         nowPlaying = m.settingBoolean("now_playing", true);
+        callState = bridge && m.settingBoolean("call_state", true);
+        // the call and voice buttons, and CarPlay music after a restart (CarKeys)
+        CarKeys.start(a.classLoader, a.context, callState && m.settingBoolean("call_key_phone", true),
+                bridge && m.settingBoolean("siri_key", true), m.settingBoolean("audio_resume", true));
         // the CarPlay libraries, patched in memory once DiPO loads them (files stay stock)
         if (bridge) m.nativePatch(a, "libCarPlayCore.so");   // AirPlay sessions over Wi-Fi
         // EV6 KR: SocketGetInterfaceInfo counts the USB Wi-Fi interface (rtwlanN) as Wi-Fi

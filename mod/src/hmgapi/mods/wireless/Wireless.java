@@ -56,6 +56,12 @@ public final class Wireless extends ModEntry {
         "update_tbt_sub_info2_b", "update_tbt_sub_info_2c", "update_remain_dis", "update_tp_crossroad_name",
         "update_tp_destination_name", "update_tp_turn_list", "update_tp_turn_list_new", "update_tp_lane_info" };
 
+    /** EV6 KR: the cluster's song line and the voice button, in system_server (SystemHooks) */
+    @Override
+    public void zygoteInit(ModContext mod) {
+        SystemHooks.zygote(mod);
+    }
+
     @Override
     public void appLoaded(final ModContext mod, LoadedApp app) {
         if (NAVIGATION.equals(app.packageName)) navigation(mod, app);

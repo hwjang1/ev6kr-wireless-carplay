@@ -45,6 +45,46 @@
       "apply": "restart",
       "title": "USB drives and hubs don't start wired Android Auto",
       "description": "A hook in the Android Auto app (no files changed). Without it, a USB drive can block wireless Android Auto until the head unit restarts."
+    },
+    {
+      "key": "cluster_artist",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "Artist and title in the cluster's CarPlay song popup",
+      "description": "The car's cluster service sends the CarPlay song title alone to the cluster (the artist only to the HUD). This sends \"artist - title\" instead (up to 63 characters). A hook in system_server (no files changed)."
+    },
+    {
+      "key": "call_state",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "Call state from the iPhone on wireless CarPlay",
+      "description": "DiPO asks the iPhone for its call state only on USB, so on wireless the steering wheel's call button didn't know about calls (a press during a call put it on hold). The mod asks on wireless too, so the button answers, ends and rejects calls as on USB."
+    },
+    {
+      "key": "call_key_phone",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "Call button opens CarPlay Phone when there's no call",
+      "description": "A short press of the steering wheel's call button with no call opens the Phone app in CarPlay. Needs the call state setting. During a call the button answers or ends it as before."
+    },
+    {
+      "key": "siri_key",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "Voice button: Siri on a short press while CarPlay is connected",
+      "description": "With CarPlay connected, a short press of the voice button opens Siri instead of the car's voice recognition, and a hold is push-to-talk. Without CarPlay the button is the car's voice recognition as before. Hooks in system_server and DiPO."
+    },
+    {
+      "key": "audio_resume",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "CarPlay music comes back after the car is switched off and on",
+      "description": "At switch-off DiPO borrows the audio and then remembers that CarPlay wasn't the last audio, so the music didn't come back at the next connection. That one change isn't remembered any more; switching to another source with the car on still is."
     }
   ]
 }
