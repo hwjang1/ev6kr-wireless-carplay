@@ -23,4 +23,16 @@ final class ClusterText {
         String s = a + SEPARATOR + title;
         return s.length() > MAX ? s.substring(0, MAX) : s;
     }
+
+    /**
+     * The title for the HUD when the car sends it a line (0.2.4): the car keeps the cluster's
+     * last line as its last title and sends that to the HUD again when it restores the cluster
+     * (ClusterLastInfo.restoreClusterInfo), with the artist beside it. lastJoin is the line made
+     * last and the title it was made from; a line that is exactly it goes back to that title.
+     * Anything else (another song, a title that only looks like one) is left as it is: null.
+     */
+    static String hudTitle(String[] lastJoin, String line) {
+        if (lastJoin == null || line == null || !line.equals(lastJoin[0])) return null;
+        return lastJoin[1];
+    }
 }
