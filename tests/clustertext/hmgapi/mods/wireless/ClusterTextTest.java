@@ -23,6 +23,13 @@ public final class ClusterTextTest {
         String long1 = ClusterText.join("Band", t.toString());
         check("long: cut at 63 (the service would cut it to 31)", "Band - " + t.substring(0, 56), long1);
         check("long: 63 chars", "63", String.valueOf(long1.length()));
+        String[] last = { "에이티즈 - Drip", "Drip" };
+        check("HUD: the line made last goes back to its title", "Drip", ClusterText.hudTitle(last, "에이티즈 - Drip"));
+        check("HUD: a plain title is left alone", null, ClusterText.hudTitle(last, "Drip"));
+        check("HUD: another song's line is left alone", null, ClusterText.hudTitle(last, "IU - Love wins all"));
+        check("HUD: a title that only looks like a line is left alone", null, ClusterText.hudTitle(new String[] { "A - B", "B" }, "A - C"));
+        check("HUD: nothing made yet", null, ClusterText.hudTitle(null, "에이티즈 - Drip"));
+        check("HUD: a cut line goes back too", t.toString(), ClusterText.hudTitle(new String[] { long1, t.toString() }, long1));
         if (failed > 0) {
             System.out.println(failed + " failed");
             System.exit(1);

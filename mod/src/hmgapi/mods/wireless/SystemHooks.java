@@ -17,7 +17,10 @@ import hmgapi.hook.Points;
  * (updateFileNameWithArtistDelayed, TP_TxHandleCon_H_UHUD_202) and the title alone to the
  * cluster (updateFilenameDelayed(mode, title, delay)), so the cluster's song popup shows the
  * title only. For CarPlay (mode DIPO, 0x73) the cluster gets "artist - title" (ClusterText);
- * the HUD is left as it is.
+ * the HUD is left as it is. The car keeps that line as its last title and sends it to the HUD
+ * again, with the artist, when it restores the cluster (ClusterLastInfo.restoreClusterInfo); the
+ * HUD then got the artist twice (2026-11-10 22:50:44). Since 0.2.4 that line goes back to the
+ * title on the way to the HUD (updateFileNameWithArtist).
  *
  * Voice button (siri_key): ModeKeyDispatcher.determineWhichAppToSendPttKey picks who gets the
  * voice button. With CarPlay connected and neither Siri nor the car's voice recognition running
@@ -38,7 +41,9 @@ final class SystemHooks {
     static volatile boolean installed;
     /** updateClusterWithArtistInfo's title and artist while it runs (CarPlay only) */
     static final ThreadLocal<String[]> SONG = new ThreadLocal<String[]>();
-    static volatile boolean artistLogged;
+    static volatile boolean artistLogged, hudLogged;
+    /** the cluster line made last and the title it was made from (ClusterText.hudTitle) */
+    static volatile String[] lastJoin;
     static volatile long lastSiriLog;
 
     /** Wireless.zygoteInit: the hooks go in when system_server loads automotive-service */
@@ -63,8 +68,9 @@ final class SystemHooks {
     }
 
     private static void clusterArtist(final ModContext mod, ClassLoader cl) {
+        Class<?> cs;
         try {
-            Class<?> cs = cl.loadClass(CLUSTER_SERVICE);
+            cs = cl.loadClass(CLUSTER_SERVICE);
             hmgapi.hook.Hooks.findAndHookMethod(cs, "updateClusterWithArtistInfo", int.class, int.class, int.class,
                     String.class, String.class, boolean.class, new MethodHook() {
                 @Override
@@ -88,6 +94,7 @@ final class SystemHooks {
                     String shown = ClusterText.join(song[1], title);
                     if (shown.equals(title)) return;
                     p.args[1] = shown;
+                    lastJoin = new String[] { shown, title };
                     if (!artistLogged) {
                         artistLogged = true;
                         mod.log("cluster: CarPlay song popup shows \"artist - title\" (" + shown.length() + " chars; logged once)");
@@ -97,6 +104,24 @@ final class SystemHooks {
             mod.log("cluster: artist added to the CarPlay song title on the cluster");
         } catch (Throwable t) {
             mod.error("cluster: song title hook (ClusterService not as expected)", t);
+            return;
+        }
+        try {
+            hmgapi.hook.Hooks.findAndHookMethod(cs, "updateFileNameWithArtist", int.class, String.class, String.class, new MethodHook() {
+                @Override
+                protected void beforeHookedMethod(Param p) {
+                    if (!Integer.valueOf(MODE_DIPO).equals(p.args[0])) return;
+                    String title = ClusterText.hudTitle(lastJoin, (String) p.args[1]);
+                    if (title == null) return;
+                    p.args[1] = title;
+                    if (!hudLogged) {
+                        hudLogged = true;
+                        mod.log("cluster: the HUD gets the title alone when the car sends the last song again (logged once)");
+                    }
+                }
+            });
+        } catch (Throwable t) {
+            mod.error("cluster: HUD title hook (ClusterService not as expected)", t);
         }
     }
 

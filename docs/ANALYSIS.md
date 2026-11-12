@@ -972,3 +972,46 @@ HMG-API 모드는 root 서비스(`"services"`, 부팅 시 시작, 감시·재시
   - 같은 상태에서 통화 버튼(09:58:38)은 모드가 `DipoActivity`를 직접 열어 `updateDisplay() mode: 2`가 됐습니다.
 - **0.2.3:** ★ 키를 받았을 때 맨 위가 `DipoActivity`이면, 통화 버튼처럼 `DipoActivity`에 `CarPlayMode=1`을 직접 넘깁니다. 아니면 0.2.2처럼 순정 바로가기를 씁니다.
 - **0.2.3 차량 확인과 배포:** 사용자가 카플레이 안팎에서 ★ 키로 지도 화면이 열리는 것을 확인했습니다(11-12). v0.2.3 정식 릴리스입니다(카플레이 모드 0.2.3, 동기화 패키지는 0.2.0 그대로, 0.2.2는 배포하지 않음). 블루투스 통화 확인과 아이폰 두 대 동작은 두 번째 폰이 없어 차에서 확인하지 못했습니다.
+
+
+## 46. HUD 곡 정보와 앨범아트, HUD에 아티스트가 두 번 가던 문제 (2026-11-12, 모드 0.2.4~0.2.6)
+
+- **HUD 곡 정보**
+  - HMG-API에는 HUD 곡 정보 기능이 없습니다. 계기판·HUD 쪽 기능은 길안내뿐입니다.
+  - 순정 `ClusterService.updateClusterWithArtistInfo`가 HUD에 제목과 아티스트를 따로 보냅니다(`updateFileNameWithArtist`, `TP_TxHandleCon_H_UHUD_202`).
+  - 카플레이(DIPO)도 0.1.13부터 이 경로로 나갑니다(11-10 22:50:35 `filename is Drip … artistName is 에이티즈`, `isTPModeValidity ----> true`).
+  - HUD가 실제로 그리는지는 HUD·계기판 소프트웨어 쪽 일입니다.
+- **앨범아트:** 순정 코드의 앨범아트 경로는 세 가지이고, 계기판·HUD(CAN 글자 패킷)로 가는 이미지 경로는 없습니다.
+  - DiPO가 헤드유닛 홈 화면 AV 위젯에 보내는 것. 무선 카플레이에서도 동작합니다(11-10 22:50:35 `update AVWidget ALBUMART data size : 25646`).
+  - 안드로이드 오토 수신기(`HKMC_GPM`, `com.google.android.projection.sink`)
+  - 미국 HD 라디오(`HDAlbumArtMain`)
+- **HUD에 아티스트가 두 번 가던 문제 (0.2.1~0.2.3)**
+  - `ClusterLastInfo`는 계기판에 보낸 마지막 줄을 `lastTitle`로 저장합니다.
+  - 오디오 전원 상태가 돌아올 때(`restoreAvPowerStatus` → `restoreClusterInfo`) 이 값을 아티스트와 함께 HUD에 다시 보냅니다.
+  - 그래서 0.2.1부터 HUD가 "에이티즈 - Drip" + "에이티즈"를 받았습니다(11-10 22:50:44 `restoreClusterInfo()::mode = DIPO, … title = 에이티즈 - Drip`).
+- **0.2.4**
+  - 모드가 계기판 줄을 만들 때 그 줄과 원래 제목을 기억합니다.
+  - HUD로 가는 `updateFileNameWithArtist`에 그 줄이 그대로 오면 원래 제목으로 바꿉니다(`ClusterText.hudTitle`).
+  - 처음 보낼 때(원래 제목), 다른 곡의 줄, 원래 "A - B" 꼴인 제목은 그대로 둡니다.
+  - 호스트 시험 6개를 추가했습니다(`tests/clustertext-test.sh`). 차에서는 아직 확인하지 않았습니다.
+- **HUD "앨범아트" 칸 (11-12 21:50 수집)**
+  - 사용자 확인: HUD에 앨범아트 칸이 있고, 순정 음원은 그림이 나오지만 카플레이는 비어 있습니다.
+  - 순정 USB 음악의 곡 넘김(21:49:53)에서 순정이 보낸 것은 두 가지뿐이었습니다. 이미지 전송은 없었습니다.
+    - `updateClusterWithArtistInfo::mode = USB Audio` → HUD로 제목·아티스트 글자(`updateFileNameWithArtist`)
+    - 음원 종류 코드(`getOpState::mode = USB Audio, opstate = 101`)
+  - 순정 미디어 앱(BT 오디오, USB 음악, 스트리밍, MediaGate)의 앨범아트는 헤드유닛 홈 위젯·분할 화면용 방송으로만 갑니다(`com.hkmc.audio.btaudio.widgetupdate`, `artwork_raw_image`). 런처·분할 화면·MediaGate·미디어 앱 어디에도 HUD로 이미지를 보내는 코드는 없습니다.
+  - 따라서 HUD 그림은 HUD가 음원 종류 코드로 정하는 것으로 봅니다. 확인된 코드는 USB 101, 지니 스트리밍 1, 카플레이(DIPO) 110입니다(`ClusterService.getOpState`). 카플레이 코드에는 그림이 없는 것으로 보입니다.
+  - 카플레이를 다른 음원 코드로 보내면 그림은 나올 수 있습니다. 하지만 계기판·HUD에 다른 음원으로 표시되므로 하지 않습니다.
+  - 0.2.4의 HUD 수정은 이 수집에서 동작할 기회가 없었습니다(`restoreClusterInfo` 없음). 곡이 바뀔 때 HUD 제목은 정상입니다.
+- **0.2.5 시험판: 카플레이를 다른 음원으로 알리기 (`hud_source`, 선택 설정)**
+  - `ClusterService.getOpState(mode)`의 순정 표(음원 모드 → 상태값)에서 확인한 값입니다.
+    - FM 17, AM 20, 블루투스 8, USB 음악 101, iPod 97, 음악(`MUSIC`) 12, 안드로이드 오토(`GPM`) 111, 카플레이(`DIPO`) 110
+    - 스트리밍 계열(`MUSICSTREAMING`·`GENIESTREAMING`·`MELONSTREAMING`) 86. 로그에는 지니 스트리밍이 1로 찍혔습니다.
+  - 시험판은 DIPO일 때 이 값을 iPod 97(기본), USB 101, 블루투스 8 중 하나로 바꿉니다. "carplay"를 고르면 순정 110 그대로입니다.
+  - HUD가 그 음원의 그림을 그리는지, 계기판·HUD의 음원 이름이 함께 바뀌는지 차에서 봅니다.
+- **0.2.5 차량 결과 (11-12 22:04 수집):** 모드가 DIPO의 상태값을 iPod 97로 바꿨습니다(`CarPlay told to the cluster and HUD as ipod (state 97)`). 헤드유닛은 곡 정보 패킷을 그대로 보냈습니다(`updateFileNameWithArtist`, `updateFilename`, `isTPModeValidity ----> true`).
+  - 그런데 **계기판 곡 팝업과 HUD 곡 정보가 모두 사라졌습니다**(사용자 확인).
+  - 계기판·HUD는 다른 경로(오디오 모드 신호)로 아는 현재 음원과 이 상태값이 맞아야 곡 정보를 표시하는 것으로 봅니다.
+  - 음원 신호까지 바꾸면 차의 오디오 경로에도 영향을 줄 수 있어 하지 않습니다. HUD의 카플레이 그림 칸은 순정 그대로 둡니다.
+- **0.2.6:** 0.2.5의 `hud_source`를 빼고 0.2.4와 같은 내용으로 되돌렸습니다(HUD 제목 수정 포함).
+- **0.2.6 차량 확인과 배포:** 0.2.5 시험 뒤 계기판 팝업이 한동안 뜨지 않았습니다. 사용자가 차를 완전히 껐다 켠 뒤 계기판 팝업과 HUD 곡 정보가 모두 정상인 것을 확인했습니다(11-12). 계기판은 헤드유닛과 따로 재시작되므로, 시험 때의 음원 상태가 남아 있던 것으로 봅니다. v0.2.6 정식 릴리스입니다(카플레이 모드 0.2.6, 동기화 패키지는 0.2.0 그대로, 0.2.4·0.2.5는 배포하지 않음).
