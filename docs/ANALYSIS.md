@@ -936,3 +936,39 @@ HMG-API 모드는 root 서비스(`"services"`, 부팅 시 시작, 감시·재시
   - 순정 `WifiService.dump()`가 같은 줄을 언제든 출력합니다. 그래서 `dumpsys wifi`에서 이 줄만 골라냅니다. 덤프에는 주변 Wi-Fi 목록도 있어서 다른 줄은 남기지 않습니다.
   - KitKat 기본 도구에는 `head`·`tail`이 없습니다. 파이프 끝에 두면 오류 없이 결과가 비어 버리므로, 줄 고르기는 셸 반복문으로 합니다(1·2판의 실수).
 - 차량 확인: EV6에서 3판이 모든 항목을 정상으로 냈습니다(23:47). `Hardware(not supported), HW Variant(3)`, 카플레이 파일 18개 모두 같음이었고, 개인정보는 없었습니다.
+
+
+## 45. 아이폰 두 대, ★ 키로 카플레이 지도 (2026-11-12, 모드 0.2.2·0.2.3 시험판)
+
+- **아이폰 두 대일 때 (예상, 차량 미확인)**
+  - 카플레이는 한 번에 한 대입니다.
+  - 시동 때는 블루투스 관리자(BTCM)가 먼저 연결한 아이폰(`IbtcmGetHfpConnectedDevice`)의 블루투스 iAP2가 먼저 열려 카플레이가 됩니다.
+  - 다른 한 대는 순정 BTCM이 블루투스 전화·오디오로 연결합니다. 11-10 로그에서도 카플레이 중에 다른 등록 기기를 5초마다 연결하려 했습니다(`btcmIsSameCarPlayDevice`, `btcmGetPriorityDevice`).
+- **통화 버튼 (`call_key_phone`)**
+  - 다른 폰의 블루투스(핸즈프리) 통화는 DiPO의 카플레이 통화 목록에 없습니다. 그래서 0.2.1은 그 통화 중에도 통화 버튼으로 카플레이 전화를 열 수 있었습니다(그 키가 DiPO로 오는 경우).
+  - 0.2.2는 DiPO가 쓰는 블루투스 통화 상태(`BluetoothHfDevice.getMobisBTStatus(10)`, DiPO의 `getBtCallStatus()`)가 0이 아니면 순정에 맡깁니다.
+  - 11-10 로그의 카플레이 통화 두 번 동안 이 값은 계속 0이었습니다. 0이 아니면 블루투스 통화로 봅니다.
+  - DiPO 도우미 객체와 그 `BluetoothHfDevice` 필드는 난독화된 이름이 아니라 타입으로 찾습니다(가짜 클래스로 호스트 확인).
+- **브리지**
+  - 0.2.1까지는 카플레이 중에 다른 아이폰의 블루투스 iAP2가 열리면 `sAddr`(현재 폰)를 그 폰으로 바꿨습니다. 동작에는 영향이 없었지만, 그 폰의 블루투스가 끊기면 "카플레이 중 블루투스 끊김" 처리로 들어갔습니다.
+  - 0.2.2는 그 폰을 `sNextAddr`로 따로 둡니다.
+  - 무선 세션이 끝나면 다음 순서로 시도합니다(`resume(true)`). 방금 끝난 폰은 다시 부르지 않습니다.
+    1. 같은 폰의 iAP2가 열려 있으면 그 폰
+    2. 기다리던 폰의 iAP2가 열려 있으면 그 폰
+    3. 차 블루투스에 붙은 다른 아이폰이 있으면 그 폰에 iAP2 연결 요청
+  - 유선 카플레이가 끝났을 때는 예전대로 같은 폰만 봅니다(`onUsbGone`).
+- **★ 키 "Apple CarPlay 지도"**
+  - HMG-API의 ★ 키 동작은 액티비티 실행이나 브로드캐스트만 되고 추가 값(extra)은 못 넘깁니다. 그래서 모드 브로드캐스트 `hmgapi.mods.wireless.CARPLAY_MAPS`를 DiPO 안의 모드가 받습니다.
+  - 받으면 DiPO 순정 ★ 키 바로가기(`DIPO_CUSTOM_SHORTCUT`)에 `CarPlayMode=1`을 붙여 다시 보냅니다.
+  - DiPO의 바로가기 수신기는 이 값을 `DipoActivity`로 넘깁니다(`Z(mode)`). `updateDisplay` 1은 `displayMap()`, 즉 `requestUI("maps:")`입니다.
+  - 어떤 지도 앱을 보여줄지는 iPhone이 정합니다. 카플레이 미연결, 화면 꺼짐, 긴급 모드는 순정 바로가기 그대로입니다.
+- **시험:** 빌드 통과, 블루투스 상태 조회 호스트 확인, `nowplaying`·`clustertext`·`apsync` 시험 통과. 동기화 패키지는 v0.2.0과 같은 파일입니다. 차에서는 아직 확인하지 않았습니다.
+- **0.2.2 차량 확인 (11-12 09:57 부팅, 10:00 수집)**
+  - 설치 실패 세 번은 설치 USB의 모드 패키지 파일이 깨져 있었기 때문입니다. 크기는 같고 CRC 오류가 났습니다. 다시 써서 설치됐습니다.
+  - NEMESIS 스토어 설치는 `manager/update.log`에 `store install … rc=1`만 남기고 설치 스크립트 출력은 남기지 않습니다. `type=install` USB는 출력을 `usb-handler.log`에 남깁니다.
+  - `mods: loaded wireless-carplay-kr 0.2.2`, ★ 항목 5개(HMG-API, NEMESIS, Apple CarPlay, Apple CarPlay 지도, 뮤직 무드램프). 오류는 없었습니다.
+  - 카플레이 밖에서 ★ 키: `ACTION_SHORTCUT_DIPO_CUSTOM` → `updateDisplay() mode: 1` → `displayMap()` → `requestUI() : maps:`로 지도가 열렸습니다(09:58:03 등).
+  - 카플레이 화면이 이미 떠 있을 때 ★ 키: `ACTION_SHORTCUT_DIPO_CUSTOM`만 남고 `updateDisplay`가 없었습니다. 순정 수신기는 맨 위 액티비티가 `DipoActivity`이면(`i/e.d(context, "…DipoActivity")`, `getRunningTasks(1)`) `Z(mode)`를 부르지 않습니다.
+  - 같은 상태에서 통화 버튼(09:58:38)은 모드가 `DipoActivity`를 직접 열어 `updateDisplay() mode: 2`가 됐습니다.
+- **0.2.3:** ★ 키를 받았을 때 맨 위가 `DipoActivity`이면, 통화 버튼처럼 `DipoActivity`에 `CarPlayMode=1`을 직접 넘깁니다. 아니면 0.2.2처럼 순정 바로가기를 씁니다.
+- **0.2.3 차량 확인과 배포:** 사용자가 카플레이 안팎에서 ★ 키로 지도 화면이 열리는 것을 확인했습니다(11-12). v0.2.3 정식 릴리스입니다(카플레이 모드 0.2.3, 동기화 패키지는 0.2.0 그대로, 0.2.2는 배포하지 않음). 블루투스 통화 확인과 아이폰 두 대 동작은 두 번째 폰이 없어 차에서 확인하지 못했습니다.

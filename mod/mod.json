@@ -1,7 +1,7 @@
 {
   "id": "wireless-carplay-kr",
   "name": "Wireless CarPlay (EV6 KR, USB Wi-Fi)",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "hmgapi": ">=1.0.0",
   "authors": [
     "VysseCodes",
@@ -41,6 +41,11 @@
         "id": "carplay",
         "title": "Apple CarPlay",
         "broadcast": "com.hkmc.intent.action.DIPO_CUSTOM_SHORTCUT"
+      },
+      {
+        "id": "carplay_maps",
+        "title": "Apple CarPlay 지도",
+        "broadcast": "hmgapi.mods.wireless.CARPLAY_MAPS"
       }
     ]
   },

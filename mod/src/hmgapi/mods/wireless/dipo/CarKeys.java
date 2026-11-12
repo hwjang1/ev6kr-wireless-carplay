@@ -1,8 +1,11 @@
 package hmgapi.mods.wireless.dipo;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import hmgapi.hook.MethodHook;
@@ -19,7 +22,11 @@ import hmgapi.hook.MethodHook;
  * CarPlay's Phone app instead: DipoActivity with CarPlayMode 2, as DiPO's own phone display
  * (updateDisplay mode 2: takes the screen, then requestUI("mobilephone:")). Only while the
  * call state updates run (Bridge.sCallState): without them DiPO can't tell a ringing call
- * from no call. Calls (ringing, active, held, dialing) and long presses stay DiPO's.
+ * from no call. Calls (ringing, active, held, dialing) and long presses stay DiPO's, and so
+ * does a Bluetooth phone call (0.2.2): with a second phone on the car's Bluetooth while the first
+ * one is on CarPlay, a call on that phone is the car's own hands-free call, which DiPO's caller
+ * list doesn't have. Its status is DiPO's own (BluetoothHfDevice.getMobisBTStatus(10), 0 =
+ * idle; it stayed 0 through CarPlay calls on 2026-11-10).
  *
  * Voice button (siri_key): with CarPlay connected and neither Siri nor the car's voice
  * recognition running, system_server sends the voice button to both (SEND_PTT_TO_VR_CARPLAYSIRI):
@@ -28,6 +35,14 @@ import hmgapi.hook.MethodHook;
  * l(action, flags)) sends Siri's ButtonDown at the press and ButtonUp at the release, so a
  * short press opens Siri (it stays open), and a hold is push-to-talk as before. Not during a
  * CarPlay call (DiPO ignores the button then, before this handler).
+ *
+ * Star key "Apple CarPlay 지도" (0.2.2): HMG-API's star key actions send a plain broadcast
+ * (ACTION_MAPS); here it becomes DiPO's own star key shortcut (DIPO_CUSTOM_SHORTCUT) with
+ * CarPlayMode 1, which DiPO's receiver passes to DipoActivity: updateDisplay mode 1 is
+ * displayMap(), requestUI("maps:"). The iPhone picks the navigation app it shows. Everything
+ * else (CarPlay not connected, screen off, emergency mode) is DiPO's shortcut as it is. With
+ * DipoActivity already in front DiPO's shortcut does nothing, so then DipoActivity gets
+ * CarPlayMode 1 directly, as the call button does with 2.
  *
  * CarPlay music after a restart (audio_resume): at ACC off DiPO borrows the main audio
  * (borrow id ACC_OFF_DELAYD_MODE), and that change of owner saves "the last audio wasn't
@@ -45,8 +60,13 @@ final class CarKeys {
     static final String SIRI_ACTION = "com.daudio.app.dipo.telechips.CarPlaySiriAction";
     static final int ACTION_DOWN = 0, ACTION_UP = 1;
     static final int FLAG_CANCELED = 0x20, FLAG_LONG_PRESS = 0x80, FLAG_CANCELED_LONG_PRESS = 0x100;
-    /** DipoActivity's CarPlayMode extra: 2 is the phone (DiPO's updateDisplay) */
-    static final int CARPLAY_MODE_PHONE = 2;
+    /** DipoActivity's CarPlayMode extra (DiPO's updateDisplay): 1 maps, 2 phone */
+    static final int CARPLAY_MODE_MAPS = 1, CARPLAY_MODE_PHONE = 2;
+    /** the mod's star key broadcast (mod.json provides.star_key "carplay_maps") and DiPO's own */
+    static final String ACTION_MAPS = "hmgapi.mods.wireless.CARPLAY_MAPS";
+    static final String DIPO_SHORTCUT = "com.hkmc.intent.action.DIPO_CUSTOM_SHORTCUT";
+    /** BluetoothHfDevice.getMobisBTStatus: what DiPO asks for its Bluetooth call status */
+    static final int MOBIS_BT_CALL_STATUS = 10;
     /** MicomPowerConstants.AccStatus: the car going off */
     static final int ACC_DELAYMODE = 6, ACC_PRESYSTEMOFF = 7, ACC_OFF = 0xff;
 
@@ -58,6 +78,10 @@ final class CarKeys {
     private static volatile boolean sCallLong;
     /** the voice key press now is ours (we sent Siri's ButtonDown) */
     private static volatile boolean sSiriOwn;
+    /** DiPO's Bluetooth phone helper (a DipoService field) and its BluetoothHfDevice, found by type */
+    private static Field sHfHolder, sHfDevice;
+    private static Method sMobisStatus;
+    private static volatile boolean sHfMissingLogged;
     private static Object sPower;
     private static Method sPowerStatus;
 
@@ -74,6 +98,38 @@ final class CarKeys {
         if (callKey) callKey(svc);
         if (siriKey) siriKey(svc);
         if (audioResume) audioResume(svc);
+        mapsShortcut(c);
+    }
+
+    // ---- star key: CarPlay maps
+
+    private static void mapsShortcut(final Context c) {
+        try {
+            c.registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context ctx, Intent in) {
+                    if (!Dipo.mod.enabled()) return;   // the mod turned off: nothing
+                    if (dipoInFront(c)) {
+                        // DiPO's shortcut does nothing while DipoActivity is in front (2026-11-12):
+                        // DipoActivity itself takes the mode, as for the call button
+                        Intent i = new Intent();
+                        i.setClassName(c.getPackageName(), DIPO_ACTIVITY);
+                        i.putExtra("CarPlayMode", CARPLAY_MODE_MAPS);
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        c.startActivity(i);
+                        Dipo.log("keys: star key: CarPlay maps (CarPlay on screen)");
+                        return;
+                    }
+                    Intent i = new Intent(DIPO_SHORTCUT);
+                    i.setPackage(c.getPackageName());
+                    i.putExtra("CarPlayMode", CARPLAY_MODE_MAPS);
+                    c.sendBroadcast(i);
+                    Dipo.log("keys: star key: CarPlay maps");
+                }
+            }, new IntentFilter(ACTION_MAPS));
+        } catch (Throwable t) {
+            Dipo.error("keys: star key CarPlay maps receiver", t);
+        }
     }
 
     // ---- call button
@@ -120,8 +176,9 @@ final class CarKeys {
             boolean tmu = Boolean.TRUE.equals(sFx.invoke(svc));
             Object callers = sCallers.invoke(svc);
             int n = callers == null ? -1 : (Integer) sSize.invoke(callers);
-            if (calling || tmu || n != 0) {
-                Dipo.log("keys: call button: DiPO's (call: carplay " + calling + ", tmu " + tmu + ", callers " + n + ")");
+            int bt = btCallStatus(svc);
+            if (calling || tmu || n != 0 || bt > 0) {
+                Dipo.log("keys: call button: DiPO's (call: carplay " + calling + ", tmu " + tmu + ", callers " + n + ", bluetooth " + bt + ")");
                 return false;
             }
             Intent i = new Intent();
@@ -134,6 +191,62 @@ final class CarKeys {
         } catch (Throwable t) {
             Dipo.error("keys: call button", t);
             return false;
+        }
+    }
+
+    /**
+     * The car's Bluetooth phone call status as DiPO reads it (0 idle), or -1 when it can't be read.
+     * DiPO's helper and its BluetoothHfDevice are found by type, not by DiPO's obfuscated names.
+     */
+    static int btCallStatus(Object svc) {
+        try {
+            if (sMobisStatus == null) {
+                Class<?> hf = svc.getClass().getClassLoader().loadClass("com.broadcom.bt.hfdevice.BluetoothHfDevice");
+                for (Field f : svc.getClass().getDeclaredFields()) {
+                    Class<?> t = f.getType();
+                    if (!t.getName().startsWith("com.daudio.app.dipo.")) continue;   // DiPO's own helpers only
+                    for (Field g : t.getDeclaredFields()) {
+                        if (g.getType() == hf) {
+                            sHfHolder = f;
+                            sHfDevice = g;
+                            break;
+                        }
+                    }
+                    if (sHfDevice != null) break;
+                }
+                if (sHfDevice == null) {
+                    if (!sHfMissingLogged) {
+                        sHfMissingLogged = true;
+                        Dipo.log("keys: DiPO's Bluetooth phone status not found: a Bluetooth call isn't told apart");
+                    }
+                    return -1;
+                }
+                sHfHolder.setAccessible(true);
+                sHfDevice.setAccessible(true);
+                sMobisStatus = hf.getMethod("getMobisBTStatus", int.class);
+            }
+            Object holder = sHfHolder.get(svc);
+            Object dev = holder == null ? null : sHfDevice.get(holder);
+            if (dev == null) return -1;
+            return (Integer) sMobisStatus.invoke(dev, MOBIS_BT_CALL_STATUS);
+        } catch (Throwable t) {
+            if (!sHfMissingLogged) {
+                sHfMissingLogged = true;
+                Dipo.error("keys: Bluetooth phone status", t);
+            }
+            return -1;
+        }
+    }
+
+    /** DipoActivity is the top activity (DiPO's own check: ActivityManager.getRunningTasks) */
+    static boolean dipoInFront(Context c) {
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
+            java.util.List<android.app.ActivityManager.RunningTaskInfo> t = am.getRunningTasks(1);
+            return t != null && !t.isEmpty() && t.get(0).topActivity != null
+                    && DIPO_ACTIVITY.equals(t.get(0).topActivity.getClassName());
+        } catch (Throwable e) {
+            return false;   // DiPO's shortcut then, as before
         }
     }
 
