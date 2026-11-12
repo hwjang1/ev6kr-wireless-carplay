@@ -56,6 +56,12 @@ final class Bridge {
     static final int SPP_DISCONNECTED = 0, SPP_CONNECTED = 2, EVENT_BTCM_CONNECTED = 2;
 
     static volatile String sAddr;
+    /**
+     * Another iPhone whose Bluetooth iAP2 came up while CarPlay ran with sAddr's (0.2.2): CarPlay is
+     * one phone at a time, so it waits, and gets its turn when that session ends. Before, it took
+     * sAddr's place.
+     */
+    static volatile String sNextAddr;
     static volatile HfDeviceBTCMManager sBtcm;
     static volatile Object sCp;
     static volatile boolean sCpClient, sCpConnected, sCpWireless, sSession, sUsb;
@@ -176,6 +182,11 @@ final class Bridge {
 
     static void onSppUp(final String addr) {
         if (addr == null || sSession) return;
+        if ((sCpClient || sCpWireless) && sAddr != null && !addr.equals(sAddr)) {
+            sNextAddr = addr;
+            log("another iPhone's Bluetooth (" + addr + ") during CarPlay with " + sAddr + ": its turn comes when this session ends");
+            return;
+        }
         sAddr = addr;
         if (sCpClient || sCpWireless || !enabled() || sUsb) return;
         sSession = true;
@@ -205,15 +216,42 @@ final class Bridge {
         });
     }
 
+    /** wired CarPlay ended: the same iPhone goes on wirelessly if its Bluetooth iAP2 is up */
     static void onUsbGone() {
-        final String addr = sAddr;
-        if (addr == null || sSession) return;
+        resume(false);
+    }
+
+    /**
+     * A USB or CarPlay session ended: start the next wireless one. The same iPhone if its Bluetooth
+     * iAP2 is still up. After a wireless session also (0.2.2) a second iPhone that waited
+     * (sNextAddr), or one that is on the car's Bluetooth (hands-free) without iAP2 yet; the iPhone
+     * that just left isn't asked again.
+     */
+    static void resume(final boolean afterWireless) {
+        final String addr = sAddr, next = sNextAddr;
+        if (sSession || (addr == null && !afterWireless)) return;
         handler().postDelayed(new Runnable() {
             @Override
             public void run() {
                 try {
                     HfDeviceBTCMManager m = sBtcm;
-                    if (m != null && !sUsb && !sSession && addr.equals(sAddr) && m.IbtcmIsSppConnectedDevice(addr)) onSppUp(addr);
+                    if (m == null || sUsb || sSession || sCpClient || sCpWireless || !enabled()) return;
+                    if (addr != null && addr.equals(sAddr) && m.IbtcmIsSppConnectedDevice(addr)) {
+                        onSppUp(addr);
+                        return;
+                    }
+                    if (!afterWireless) return;
+                    if (next != null && next.equals(sNextAddr) && m.IbtcmIsSppConnectedDevice(next)) {
+                        sNextAddr = null;
+                        log("the waiting iPhone's turn: " + next);
+                        onSppUp(next);
+                        return;
+                    }
+                    BluetoothDevice d = m.IbtcmGetHfpConnectedDevice();
+                    if (d != null && isApple(d) && !d.getAddress().equals(addr)) {
+                        log("another iPhone on the car's Bluetooth: " + d.getAddress());
+                        scheduleSppConnect(d.getAddress());
+                    }
                 } catch (Throwable t) {
                     error("onUsbGone", t);
                 }
@@ -271,7 +309,7 @@ final class Bridge {
                 sPendingIn.clear();
             }
             if (client) sendDetach();
-            if (client || wireless) onUsbGone();
+            if (client || wireless) resume(true);
         } catch (Throwable t) {
             error("onCpSessionFinalized", t);
         }
@@ -444,6 +482,11 @@ final class Bridge {
     }
 
     static void onSppDown(String addr) {
+        if (addr != null && addr.equals(sNextAddr)) {
+            sNextAddr = null;
+            log("the waiting iPhone's Bluetooth went: " + addr);
+            return;
+        }
         if (addr == null || !addr.equals(sAddr)) return;
         if (sCpWireless) {
             sSession = false;
