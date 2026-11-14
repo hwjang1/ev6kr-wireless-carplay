@@ -54,6 +54,14 @@ final class CpTurns {
      */
     int nUpdate, nManeuver, nLanes;
     final java.util.HashSet<String> notes = new java.util.HashSet<String>();
+    /**
+     * EV6 KR, setting tbt_standard (off by default): near a maneuver the turn goes out in the
+     * car's own format (CarTurns), which the AR HUD animates; the HUD list keeps the icons.
+     * stdIndex: the maneuver that last went out in it (-1 none), so each one is logged once;
+     * nStandard: how many did this session.
+     */
+    boolean standardTurns;
+    int stdIndex = -1, nStandard;
     static final int[] UPDATE_TEXT = { 8, 11, 19 }, MANEUVER_TEXT = { 6 }, NO_TEXT = {};
 
     CpTurns(Context context, Cluster cluster, Runnable restart) {
@@ -296,14 +304,17 @@ final class CpTurns {
         reset();
         hudBlank();
         source = null;
-        if (nUpdate + nManeuver + nLanes > 0) Dipo.log("CarPlay: route guidance session ended: " + nUpdate + " updates, " + nManeuver + " maneuvers, " + nLanes + " lane messages");
-        nUpdate = nManeuver = nLanes = 0;
+        if (nUpdate + nManeuver + nLanes > 0) Dipo.log("CarPlay: route guidance session ended: " + nUpdate + " updates, " + nManeuver + " maneuvers, " + nLanes + " lane messages"
+                + (standardTurns ? ", " + nStandard + " maneuvers in the car's format" : ""));
+        nUpdate = nManeuver = nLanes = nStandard = 0;
+        stdIndex = -1;
         notes.clear();
     }
 
     /** route guidance stopped (DiPO e/u.nS: the car's navigation took turn-by-turn back, or state 0) */
     void stop() {
         hudBlank();
+        stdIndex = -1;
     }
 
     /** forget every component's state and maneuvers (DiPO e/u.nT) */
@@ -386,7 +397,29 @@ final class CpTurns {
             return;
         }
         note("to the cluster: icon " + icon + " for maneuver type " + x.type + ", component " + id + ", source '" + u.sourceName + "'");
-        cluster.tbtInfo(icon, 0, 0f, dist, 0, 0, unit, 0, 0);
+        int type = icon, dir = 0, bar = 0;
+        if (standardTurns) {
+            // the phone's distance to this maneuver in meters (item 10), when it has sent one
+            int meters = u.nextStr == null || u.nextStr.length() == 0 ? -1 : u.distNext;
+            int[] s = CarTurns.standard(x.type, x.side, x.junction, x.exit, icon, meters);
+            type = s[0];
+            dir = s[1];
+            bar = s[2];
+            if (type != icon) {
+                if (x.index != stdIndex) {
+                    nStandard++;
+                    if (nStandard <= 30 || nStandard % 50 == 0) {
+                        Dipo.log("CarPlay: car format #" + nStandard + ": maneuver type " + x.type + " (side " + x.side
+                                + ", junction " + x.junction + ", exit " + x.exit + ") icon " + icon + " -> type " + type
+                                + " dir " + dir + " at " + meters + " m, bar " + bar);
+                    }
+                }
+                stdIndex = x.index;
+            } else {
+                stdIndex = -1;
+            }
+        }
+        cluster.tbtInfo(type, 0, dir, dist, 0, 0, unit, bar, 0);
         sendHud(icon, id, u);
         sendHudDist(dist, unit);
         sendTrip(u);

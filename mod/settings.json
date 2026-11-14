@@ -9,6 +9,14 @@
       "apply": "rebuild"
     },
     {
+      "key": "tbt_standard",
+      "type": "toggle",
+      "default": true,
+      "apply": "restart",
+      "title": "CarPlay turns in the car's own format (AR HUD arrow)",
+      "description": "Within about 450 m of a maneuver, CarPlay's turn goes to the cluster and HUD as the car's own navigation sends it: turn, U-turn, fork, exit and roundabout types with their angle and a distance bar, which the AR HUD animates. Farther away, and in the HUD's turn list, the icons as before. Checked on this car (EV6 KR, 260902) with right, left, slight left and U-turns; forks, highway exits and roundabouts not yet. Turn it off if a turn looks wrong on the cluster or HUD. Takes effect when the head unit restarts."
+    },
+    {
       "key": "bridge",
       "type": "toggle",
       "default": true,
