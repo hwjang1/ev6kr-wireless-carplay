@@ -144,6 +144,10 @@ public final class Dipo {
                 restartRouteGuidance();
             }
         });
+        // EV6 KR: near a maneuver, the turn in the car's own format for the AR HUD (CarTurns)
+        turns.standardTurns = mod.settingBoolean("tbt_standard", true);
+        log("CarPlay: turns in the car's own format near a maneuver (AR HUD, tbt_standard): "
+                + (turns.standardTurns ? "on, within " + CarTurns.GUIDE_WINDOW + " m" : "off"));
         rg = new RgListener();
         mod.hook(app.classLoader, "dipo.iap2_proxy.stop_route_guidance", new MethodHook() {
             @Override
