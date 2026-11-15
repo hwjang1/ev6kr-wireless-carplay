@@ -14,8 +14,12 @@ HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)
 > 이로 인해 생기는 **헤드유닛·차량의 고장, 부팅 불가, 순정 기능 오작동, 데이터 손실, 보증·무상수리 거부, 법규 위반 등 모든 결과는 설치한 사람이 책임집니다.** 작성자와 기여자는 책임지지 않습니다.
 > 설치 전에 [면책](#면책)과 [의존 프로젝트](#의존-프로젝트와-제약)를 읽어 주세요.
 
-> **상태 (2026-11-14): v0.2.8 정식 릴리스. 기존 구성(`usbwifi.hotspot` + `ev6kr.usbap.sync` + 카플레이 모드)과 ipTIME AX900UA(RTL8831BU)·AX900MINI 동글로 무선 카플레이가 동작합니다.**
+> **상태 (2026-11-15): v0.2.9 정식 릴리스. 기존 구성(`usbwifi.hotspot` + `ev6kr.usbap.sync` + 카플레이 모드)과 ipTIME AX900UA(RTL8831BU)·AX900MINI 동글로 무선 카플레이가 동작합니다.**
 > - **차에서 확인:** 시동 뒤 자동 연결, 24분·39분 주행 중 끊김 없음, 화면과 소리, 차 LTE를 공유하지 않는 순정 방식(iPhone은 자기 셀룰러 사용)([31](docs/ANALYSIS.md)·[35](docs/ANALYSIS.md)·[42절](docs/ANALYSIS.md)).
+> - **0.2.9 (카플레이 모드만, [48절](docs/ANALYSIS.md)):** 통화가 없을 때 통화 버튼이 카플레이 전화를 열지 않던 세션이 있던 문제를 고쳤습니다.
+>   - 아이폰이 카플레이 연결 뒤에도 한동안(길게는 2분) 블루투스로 통신하는 동안에는 모드가 아이폰의 통화 상태를 받지 못합니다. 0.2.8까지는 그동안 버튼을 순정 처리에 넘겼고, 순정은 통화가 없으면 아무것도 하지 않았습니다.
+>   - 이제 카플레이 자체의 통화 모드(벨이 울릴 때부터 켜짐)로 통화 여부를 판단해, 통화가 없으면 언제든 카플레이 전화를 엽니다. 벨이 울릴 때와 통화 중에는 지금처럼 순정이 받기·끊기를 처리합니다.
+>   - 차에서 확인: 0.2.9에서 통화 버튼으로 카플레이 전화가 열림. 통화 상태를 받기 전 구간에서 여는 경로는 로그로 아직 확인하지 못했습니다.
 > - **0.2.8 (카플레이 모드만, [47절](docs/ANALYSIS.md)):** 카플레이 길안내로 **AR HUD 화살표**가 움직입니다.
 >   - 교차로 약 450 m 안에서 회전을 순정 내비 형식(회전 종류·각도·거리 막대)으로 보냅니다. 설정 `tbt_standard`, 기본 켬.
 >   - 차에서 확인: 우회전, 좌회전, 약간 좌회전, 유턴(네이버지도, T맵). 갈림길, 고속도로 출구, 회전교차로, 도착은 아직 확인하지 못했습니다.
@@ -42,11 +46,11 @@ HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)
 
 ## 다운로드
 
-[릴리스 페이지](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)에서 받습니다. 지금 판은 **v0.2.8**입니다. 아래 링크는 늘 최신 릴리스를 받습니다.
+[릴리스 페이지](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)에서 받습니다. 지금 판은 **v0.2.9**입니다. 아래 링크는 늘 최신 릴리스를 받습니다.
 
 | 파일 | 용도 |
 |---|---|
-| [`ev6kr-wireless-carplay-nemesis.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-wireless-carplay-nemesis.zip) | **설치용.** USB 최상위에 풀고 꽂으면 NEMESIS에 두 패키지가 나옵니다([설치 순서](#설치-순서) 5단계). 같은 파일이 버전이 붙은 이름(`ev6kr-wireless-carplay-0.2.0-mod0.2.8-nemesis.zip`)으로도 있습니다 |
+| [`ev6kr-wireless-carplay-nemesis.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-wireless-carplay-nemesis.zip) | **설치용.** USB 최상위에 풀고 꽂으면 NEMESIS에 두 패키지가 나옵니다([설치 순서](#설치-순서) 5단계). 같은 파일이 버전이 붙은 이름(`ev6kr-wireless-carplay-0.2.0-mod0.2.9-nemesis.zip`)으로도 있습니다 |
 | [`ev6kr-preflight-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-preflight-usb.zip) | 설치 전 점검 USB(1단계) |
 | [`ev6kr-trylog-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-trylog-usb.zip) | 문제가 생겼을 때 로그 수집 USB(8단계) |
 | [`ev6kr-carinfo-usb.zip`](https://github.com/hwjang1/ev6kr-wireless-carplay/releases/latest/download/ev6kr-carinfo-usb.zip) | 다른 차종 지원 요청용 차량 정보 수집 USB([안내](docs/CARINFO.md)) |
@@ -118,11 +122,11 @@ USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 
    - 점검에서 `app_process`가 "모르는 빌드"로 나오면, 설치 프로그램이 거부합니다. 진행하려면 USB에 빈 파일 `HMGAPI/FORCE`를 두어야 합니다(**본인 책임**: `/system/bin/app_process`를 HMG-API의 래퍼로 바꾸며, HMG-API 제거 시 원래 파일로 복원됨).
 4. **훅 맵 만들기**: HMG-API 앱 → Settings → Hook map → *Map this car from its files* → *Check the map on this car* → 재시작.
    (이 저장소의 [maps/](maps/)는 같은 방법으로 Mac에서 만든 것이라 결과 대조용입니다. adb로 `/data/hmgapi/maps/kia/ev6/kor/260902/`에 넣고 `hmgapid engine verify-map`을 실행해도 됩니다.)
-5. **두 패키지 설치**: [릴리스](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)의 `ev6kr-wireless-carplay-nemesis.zip`(직접 빌드했다면 `dist/ev6kr-wireless-carplay-0.2.0-mod0.2.8-nemesis.zip`)을 USB 루트에 풀고 꽂으면 NEMESIS 패키지 스토어에 두 패키지가 나옵니다.
+5. **두 패키지 설치**: [릴리스](https://github.com/hwjang1/ev6kr-wireless-carplay/releases)의 `ev6kr-wireless-carplay-nemesis.zip`(직접 빌드했다면 `dist/ev6kr-wireless-carplay-0.2.0-mod0.2.9-nemesis.zip`)을 USB 루트에 풀고 꽂으면 NEMESIS 패키지 스토어에 두 패키지가 나옵니다.
    **① EV6 KR CarPlay Hotspot Sync**를 먼저, 이어서 **② Wireless CarPlay (EV6 KR, USB Wi-Fi)**를 설치합니다.
    - ①은 USB 핫스팟의 SSID·비밀번호를 순정 카플레이 값(`Kia_` + 4글자)으로 바꿉니다. NEMESIS Manager에서 Launch를 누르면 즉시 동기화하고 결과를 알림으로 보여줍니다.
    - ②는 HMG-API 엔진으로 설치·적용됩니다. HMG-API에 등록되지 않은 서명 키라 경고가 나오지만 설치는 됩니다.
-   - 하나씩 설치하려면 `ev6kr.usbap.sync-0.2.0-nemesis.zip`, `wireless-carplay-kr-0.2.8-nemesis.zip`을 각각 써도 됩니다. 이전 버전이 깔려 있으면 스토어에서 업데이트로 나옵니다.
+   - 하나씩 설치하려면 `ev6kr.usbap.sync-0.2.0-nemesis.zip`, `wireless-carplay-kr-0.2.9-nemesis.zip`을 각각 써도 됩니다. 이전 버전이 깔려 있으면 스토어에서 업데이트로 나옵니다.
 6. USB를 빼고 **동글을 꽂은 뒤 헤드유닛 재시작**. 기능 플래그와 훅은 재시작 뒤에 적용됩니다.
 7. **연결**: iPhone에서 예전 핫스팟(`HKG_USB_Hotspot`)과 **`Kia_…` 네트워크를 "이 네트워크 설정 지우기"** 하고, 설정 → 일반 → CarPlay에서 이 차를 지웁니다(손으로 입력한 설정이 남아 있으면 카플레이가 받은 설정과 엇갈립니다). iCloud 키체인을 쓰는 다른 Apple 기기에도 같은 네트워크가 남아 있으면 지웁니다. 이어서 블루투스로 연결하고 카플레이 안내에 따라 진행합니다. **핫스팟 비밀번호를 직접 입력하지 마세요.**
 8. **안 되면**: 동글을 빼고 로그 수집 USB(릴리스의 `ev6kr-trylog-usb.zip`, 또는 [usb/trylog/](usb/trylog/))를 꽂아 실행 → 화면에 "EV6KR 로그 수집 완료" 토스트가 뜰 때까지(약 1분) 기다렸다가 빼고 `EV6KR-TRYLOG/` 폴더를 보내주세요. 일찍 빼면 파일이 비어 있습니다(설정 파일은 먼저 적용됨).
@@ -147,7 +151,7 @@ USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 
 - USB 핫스팟이 STA(클라이언트) 모드일 때는 동기화하지 않습니다.
 - 차 LTE 공유: 0.1.12부터 끕니다(순정처럼 iPhone은 자기 셀룰러 사용). 다시 켜려면 `/data/nemesis/ev6kr.usbap.sync.tune`에 `lte_share=1`(trylog USB의 `EV6KR-TUNE.txt`로도 설정)
 - 모드 설정(HMG-API 앱): 길안내(tbt), 블루투스 브리지(bridge), 무선 오디오(audio), 무선 카플레이 곡 정보(now_playing, 0.1.13, 기본 켬, 재시작 후 적용: 계기판·미디어 위젯·분할 화면의 곡 제목), 블루투스 준비 즉시 카플레이 시작(early_start, 0.1.12, 기본 켬, 재시작 후 적용), USB 메모리·허브가 유선 안드로이드 오토를 시작하지 않게(usb_drives).
-  0.2.1에서 추가(모두 기본 켬, 재시작 후 적용): 계기판 곡 팝업에 아티스트(cluster_artist), 무선 통화 상태(call_state), 통화가 없을 때 통화 버튼으로 카플레이 전화(call_key_phone, call_state 필요), 음성 버튼 짧게 눌러도 시리(siri_key), 시동을 끌 때 카플레이 음악을 마지막 소리로 유지(audio_resume).
+  0.2.1에서 추가(모두 기본 켬, 재시작 후 적용): 계기판 곡 팝업에 아티스트(cluster_artist), 무선 통화 상태(call_state), 통화가 없을 때 통화 버튼으로 카플레이 전화(call_key_phone, call_state 필요; 0.2.9부터 통화 상태를 받기 전에도 동작), 음성 버튼 짧게 눌러도 시리(siri_key), 시동을 끌 때 카플레이 음악을 마지막 소리로 유지(audio_resume).
   0.2.8에서 추가(기본 켬, 재시작 후 적용): 교차로 근처에서 카플레이 회전을 순정 내비 형식으로(tbt_standard, AR HUD 화살표). 계기판·HUD 방향 표시가 이상하면 끄면 이전처럼 아이콘만 보냅니다.
   ★ 버튼(차량 설정의 버튼 설정): "Apple CarPlay"(카플레이 열기), "Apple CarPlay 지도"(0.2.3, 카플레이 지도 화면으로 바로)
 
@@ -177,7 +181,7 @@ sh tests/nowplaying-test.sh; sh tests/clustertext-test.sh; sh tests/carturns-tes
 - **DiPO의 USB 리셋**: DiPO는 카플레이 세션이 약 6초 안에 열리지 않으면 USB 포트 전원을 껐다 켭니다(유선용 복구). 모드가 동글이 꽂혀 있는 동안(Realtek USB 드라이버에 USB 인터페이스가 묶여 있을 때) DiPO 프로세스에서 이 리셋을 막고, 막든 안 막든 HMG-API 로그에 `USB power reset …`을 남깁니다.
 - **USB 핫스팟 복구**: `usbwifi.hotspot` 데몬은 USB 버스 리셋이나 빠른 재연결을 알아채지 못해 핫스팟을 다시 띄우지 않습니다(사라진 `rtwlan0`에 주소가 남고 새 `rtwlanN`은 미설정). 동기화 서비스가 이 상태를 약 1분 30초 뒤 감지해 재시작을 요청합니다. 근본적으로는 USB 패키지 쪽 수정이 필요합니다.
 - **카플레이 IE**: 순정은 핫스팟 비콘용 카플레이 정보 요소를 설정에 저장하지만 순정 핫스팟 시작 경로에서 쓰이는 곳은 찾지 못했고, USB 핫스팟에도 넣지 않았습니다. 넣지 않아도 iPhone은 iAP2로 받은 SSID·비밀번호로 접속합니다(iAP2는 채널을 보내지 않으므로 iPhone이 SSID로 찾아갑니다).
-- **핸들 버튼·음악 자동 재생(0.2.1)**: DiPO의 난독화된 메서드를 이름과 시그니처로 찾습니다. 펌웨어가 바뀌어 찾지 못하면 그 기능만 꺼지고 HMG-API 로그에 남습니다. 시동을 다시 켰을 때 음악이 이어지는 부분(audio_resume)과 아이폰 두 대일 때의 동작(0.2.3)은 차에서 아직 확인하지 못했습니다.
+- **핸들 버튼·음악 자동 재생(0.2.1)**: DiPO의 난독화된 메서드를 이름과 시그니처로 찾습니다. 펌웨어가 바뀌어 찾지 못하면 그 기능만 꺼지고 HMG-API 로그에 남습니다. 시동을 다시 켰을 때 음악이 이어지는 부분(audio_resume)과 아이폰 두 대일 때의 동작(0.2.3)은 차에서 아직 확인하지 못했습니다. 아이폰이 블루투스로 통신하는 동안(통화 상태를 받기 전)에는 통화 중에 통화 버튼을 누르면 끊기지 않고 보류가 됩니다(순정과 같음, [48절](docs/ANALYSIS.md)).
 - **AR HUD 화살표(0.2.8)**: 교차로 약 457 m 안에서만 순정 형식으로 보내고, 그보다 멀 때와 HUD의 다음 회전 목록은 아이콘입니다. 계기판의 채워지는 거리 막대는 제한속도와 같은 프레임이라 비워 둡니다(HMG-API에 연결 지점이 더 필요). T맵의 회전교차로는 회전 종류 없이(0) 와서 지금도 표시되지 않습니다. 갈림길·고속도로 출구·회전교차로·도착은 차에서 아직 확인하지 못했습니다([47절](docs/ANALYSIS.md)).
 - **HUD 그림 칸**: HUD는 음원 종류마다 곡 정보 옆에 그림을 그리는데, 카플레이용 그림은 없어 비어 있습니다. 카플레이를 다른 음원으로 알리면 계기판 팝업과 HUD 곡 정보가 아예 표시되지 않아(0.2.5 시험) 순정 그대로 둡니다. 계기판·HUD로 앨범아트 이미지를 보내는 순정 경로는 없습니다([46절](docs/ANALYSIS.md)).
 - **무선 안드로이드 오토**: 켜지 않았습니다(카플레이 무선 플래그만). 안드로이드 오토 길안내 네이티브 패치는 국내형 라이브러리가 달라 적용되지 않습니다.
