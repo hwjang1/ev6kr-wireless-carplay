@@ -14,7 +14,7 @@ HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)
 > 이로 인해 생기는 **헤드유닛·차량의 고장, 부팅 불가, 순정 기능 오작동, 데이터 손실, 보증·무상수리 거부, 법규 위반 등 모든 결과는 설치한 사람이 책임집니다.** 작성자와 기여자는 책임지지 않습니다.
 > 설치 전에 [면책](#면책)과 [의존 프로젝트](#의존-프로젝트와-제약)를 읽어 주세요.
 
-> **상태 (2026-11-15): v0.2.9 정식 릴리스. 기존 구성(`usbwifi.hotspot` + `ev6kr.usbap.sync` + 카플레이 모드)과 ipTIME AX900UA(RTL8831BU)·AX900MINI 동글로 무선 카플레이가 동작합니다.**
+> **상태 (2026-11-15): v0.2.9 정식 릴리스. 기존 구성(`usbwifi.hotspot` + `ev6kr.usbap.sync` + 카플레이 모드)과 ipTIME AX900UA·AX900MINI(RTL8831BU), A3000mini(RTL8812BU) 동글로 무선 카플레이가 동작합니다.**
 > - **차에서 확인:** 시동 뒤 자동 연결, 24분·39분 주행 중 끊김 없음, 화면과 소리, 차 LTE를 공유하지 않는 순정 방식(iPhone은 자기 셀룰러 사용)([31](docs/ANALYSIS.md)·[35](docs/ANALYSIS.md)·[42절](docs/ANALYSIS.md)).
 > - **0.2.9 (카플레이 모드만, [48절](docs/ANALYSIS.md)):** 통화가 없을 때 통화 버튼이 카플레이 전화를 열지 않던 세션이 있던 문제를 고쳤습니다.
 >   - 아이폰이 카플레이 연결 뒤에도 한동안(길게는 2분) 블루투스로 통신하는 동안에는 모드가 아이폰의 통화 상태를 받지 못합니다. 0.2.8까지는 그동안 버튼을 순정 처리에 넘겼고, 순정은 통화가 없으면 아무것도 하지 않았습니다.
@@ -40,7 +40,7 @@ HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)
 >   - 블루투스가 준비되면 바로 카플레이 시작(0.1.12, [37절](docs/ANALYSIS.md))
 >   - 무선에서도 곡 정보 표시, 다음·이전 곡 포함(0.1.13, [39절](docs/ANALYSIS.md))
 >   - ★ 키로 카플레이 열기
-> - RTL8812BU 동글 한 개는 송신부 불량으로 링크가 계속 끊겼습니다([29절](docs/ANALYSIS.md)). 독립 구성(`usb-hotspot-kr`)은 보류 중입니다.
+> - RTL8812BU 동글 한 개는 송신부 불량으로 링크가 계속 끊겼습니다([29절](docs/ANALYSIS.md)). 같은 칩의 ipTIME A3000mini는 정상 동작합니다([49절](docs/ANALYSIS.md)). 독립 구성(`usb-hotspot-kr`)은 보류 중입니다.
 >
 > 아래 [알려진 제약](#알려진-제약과-미확인-사항)을 먼저 읽어 주세요.
 
@@ -58,7 +58,7 @@ HMG-API의 `wireless-carplay-aa` 모드(미국·캐나다 EV6/아이오닉 5용)
 
 USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 USB 최상위에 풉니다. `packages/` 안의 zip은 풀지 마세요.
 
-이 저장소 밖에서 따로 받아 설치할 것: [NEMESIS](https://github.com/xwtk/hmg_nemesis)(1.16.7에서 확인), [HMG-API](https://github.com/Open-HMG/HMG-API) 1.0.2, [usbwifi.hotspot](https://github.com/GRT47/HKG_5W_USB_Wlan), 그리고 USB 무선랜 동글(확인된 것은 ipTIME AX900UA, AX900MINI). 조건과 제약은 [의존 프로젝트와 제약](#의존-프로젝트와-제약)을 보세요.
+이 저장소 밖에서 따로 받아 설치할 것: [NEMESIS](https://github.com/xwtk/hmg_nemesis)(1.16.7에서 확인), [HMG-API](https://github.com/Open-HMG/HMG-API) 1.0.2, [usbwifi.hotspot](https://github.com/GRT47/HKG_5W_USB_Wlan), 그리고 USB 무선랜 동글(확인된 것은 ipTIME AX900UA, AX900MINI, A3000mini). 조건과 제약은 [의존 프로젝트와 제약](#의존-프로젝트와-제약)을 보세요.
 
 ## 동작 원리
 
@@ -107,13 +107,13 @@ USB 메모리는 FAT32나 exFAT로 포맷하고, zip은 **안의 내용물**을 
 | AOSP `arm-eabi-4.7`, Linux 3.18.24(kernel.org) | 드라이버 빌드 툴체인과 커널 소스 | 빌드(Docker) | 첫 빌드 때 내려받음 |
 | JDK, Android SDK(`android.jar`, `d8`), python3, zip | 패키지 빌드 | 빌드 | — |
 | 순정 펌웨어 `CVEV.KOR.0000.V039.001.260902` | 모드·레시피·훅 맵의 대상 | 차 | 이 펌웨어 전용입니다. 레시피는 순정 바이트의 해시를 확인하므로, 서비스센터 업데이트 등으로 펌웨어가 바뀌면 패치가 적용되지 않습니다. 제조사 파일은 저장소에 없습니다 |
-| USB 무선랜 동글(5GHz AP 지원 Realtek) | 핫스팟 | 차 | 기존 구성: usbwifi.hotspot이 지원하는 RTL8812BU/8822BU/8831BU/8851BU. 독립 구성: RTL8812BU/8822BU만. 동작을 확인한 동글: ipTIME AX900UA(RTL8831BU), ipTIME AX900MINI(칩셋 미확인, [40절](docs/ANALYSIS.md)) |
+| USB 무선랜 동글(5GHz AP 지원 Realtek) | 핫스팟 | 차 | 기존 구성: usbwifi.hotspot이 지원하는 RTL8812BU/8822BU/8831BU/8851BU. 독립 구성: RTL8812BU/8822BU만. 동작을 확인한 동글: ipTIME AX900UA·AX900MINI(RTL8831BU), ipTIME A3000mini(RTL8812BU) ([49절](docs/ANALYSIS.md)) |
 | HMG Leafia Plus(`wireless.carplay.aa`) | — | **함께 설치 불가** | HMG-API와 같이 설치되지 않으므로 먼저 제거합니다 |
 
 ## 설치 순서
 
 준비: NEMESIS 설치됨, `usbwifi.hotspot` 설치·**AP(핫스팟) 모드**·동글 연결, **5GHz**.
-동글은 동작을 확인한 **ipTIME AX900UA**(RTL8831BU)나 **ipTIME AX900MINI**를 권장합니다. 처음에 CD-ROM으로 잡히는 동글(AX900UA 등)은 ①이 CD를 꺼내 무선랜으로 바꿉니다.
+동글은 동작을 확인한 **ipTIME AX900UA**·**AX900MINI**(RTL8831BU)나 **ipTIME A3000mini**(RTL8812BU)를 권장합니다. 처음에 CD-ROM으로 잡히는 동글(AX900UA 등)은 ①이 CD를 꺼내 무선랜으로 바꿉니다(약 3초). AX900MINI와 A3000mini는 이 단계가 없습니다.
 
 1. **점검**: 릴리스의 `ev6kr-preflight-usb.zip`을 USB 최상위에 풀고(또는 [usb/preflight/](usb/preflight/)의 두 파일을 복사) → 꽂고 "예" → `EV6KR-PREFLIGHT.txt`의 `[STOP]` 항목을 먼저 해결.
 2. **Leafia 제거**: NEMESIS Manager → My Packages → *HMG Leafia Plus - Wireless CarPlay/AA*(`wireless.carplay.aa`) → Uninstall → 헤드유닛 재시작.
@@ -174,7 +174,7 @@ sh tests/nowplaying-test.sh; sh tests/clustertext-test.sh; sh tests/carturns-tes
 ## 알려진 제약과 미확인 사항
 
 - **차량 확인 범위**: 한 대(국내형 EV6, 260902)에서만 확인했습니다. 확인 항목은 맨 위 상태를 보세요. 다른 차종은 [차량 정보 수집 안내](docs/CARINFO.md)를 보세요.
-- **동글**: 정상 동작을 확인한 동글은 ipTIME AX900UA와 AX900MINI입니다. AX900MINI는 사용자가 차에서 확인했고, 칩셋은 아직 로그로 확인하지 않았습니다([40절](docs/ANALYSIS.md)). RTL8812BU 동글 한 개는 송신 체인 불량으로 링크가 무너졌고, 송신 경로·전력·1T2R 같은 소프트웨어 조정으로도 해결되지 않았습니다([29절](docs/ANALYSIS.md)). 다른 RTL8812BU 제품은 시험하지 않았습니다. 5GHz를 지원하지 않는 동글(예: 2.4GHz 전용 AX300급)은 쓸 수 없습니다.
+- **동글**: 정상 동작을 확인한 동글은 ipTIME AX900UA·AX900MINI(RTL8831BU, `8851bu` 드라이버)와 ipTIME A3000mini(RTL8812BU, `88x2bu` 드라이버)입니다([49절](docs/ANALYSIS.md)). A3000mini는 짧은 세션(162초, 103초)으로 확인했고, 긴 주행은 아직 시험하지 않았습니다. 다른 RTL8812BU 동글 한 개는 송신 체인 불량으로 링크가 무너졌고, 송신 경로·전력·1T2R 같은 소프트웨어 조정으로도 해결되지 않았습니다([29절](docs/ANALYSIS.md)). A3000mini는 같은 칩으로 송신 실패 0%였으므로, 그 동글 개체의 하드웨어 문제로 봅니다. 5GHz를 지원하지 않는 동글(예: 2.4GHz 전용 AX300급)은 쓸 수 없습니다.
 - **길안내**: 내비 앱이 iAP2 길안내 정보를 보내야 클러스터·HUD에 표시됩니다. T맵과 네이버지도는 확인했습니다. 네이버지도는 앱의 CarPlay 설정(톱니바퀴 → 네비게이션 탭)에서 HUD 스위치를 켜야 보냅니다. 다른 앱은 시험하지 않았습니다.
 - **usbwifi.hotspot 자동 업데이트**: `AUTO_UPDATE=1`(기본)이면 LTE로 GitHub에서 스스로 업데이트합니다. 업데이트 중 핫스팟이 몇 분간 반복해서 다시 만들어진 적이 있습니다([26절](docs/ANALYSIS.md)).
 - **USB 포트**: 이 차는 데이터 USB 포트가 하나라서, 동글을 꽂아 두면 유선 카플레이·USB 메모리는 허브 없이 쓸 수 없습니다.
