@@ -20,9 +20,14 @@ import hmgapi.hook.MethodHook;
  * flags), "onKeyForService() performPhoneKey Call Key") sends HookSwitch with no call, or, when
  * the CarPlay screen isn't up, shows a "no call" notice. With no call, a short press opens
  * CarPlay's Phone app instead: DipoActivity with CarPlayMode 2, as DiPO's own phone display
- * (updateDisplay mode 2: takes the screen, then requestUI("mobilephone:")). Only while the
- * call state updates run (Bridge.sCallState): without them DiPO can't tell a ringing call
- * from no call. Calls (ringing, active, held, dialing) and long presses stay DiPO's, and so
+ * (updateDisplay mode 2: takes the screen, then requestUI("mobilephone:")). A call is
+ * DiPO's co(): CarPlay's own phone call mode (the CarPlay session's modes, no iAP2 needed;
+ * it's 1 from the first ring on: 2026-11-10 22:49:48, 70 ms after the iAP2 call status) or
+ * the call state updates' status. Up to 0.2.8 only while the call state updates ran
+ * (Bridge.sCallState), so the button did nothing in sessions without them: the phone kept
+ * iAP2 on Bluetooth (2026-11-12 08:45), its CarPlay-channel iAP2 stopped after the link
+ * sync (2026-11-14 14:48), or the press came before they started (2026-11-14 10:45).
+ * Since 0.2.9 it doesn't need them. Calls (ringing, active, held, dialing) and long presses stay DiPO's, and so
  * does a Bluetooth phone call (0.2.2): with a second phone on the car's Bluetooth while the first
  * one is on CarPlay, a call on that phone is the car's own hands-free call, which DiPO's caller
  * list doesn't have. Its status is DiPO's own (BluetoothHfDevice.getMobisBTStatus(10), 0 =
@@ -168,17 +173,20 @@ final class CarKeys {
             boolean longPress = sCallLong || (flags & (FLAG_LONG_PRESS | FLAG_CANCELED_LONG_PRESS)) != 0;
             sCallLong = false;
             if ((flags & FLAG_CANCELED) != 0 || longPress) return false;
-            if (!Bridge.sCpWireless || !Bridge.sCallState) {
-                Dipo.log("keys: call button: DiPO's (" + (!Bridge.sCpWireless ? "no wireless CarPlay" : "no call state updates") + ")");
+            if (!Bridge.sCpWireless) {
+                Dipo.log("keys: call button: DiPO's (no wireless CarPlay)");
                 return false;
             }
+            // co(): CarPlay's own phone call mode (ringing too) or DiPO's call status
             boolean calling = Boolean.TRUE.equals(sCo.invoke(svc));
             boolean tmu = Boolean.TRUE.equals(sFx.invoke(svc));
             Object callers = sCallers.invoke(svc);
             int n = callers == null ? -1 : (Integer) sSize.invoke(callers);
             int bt = btCallStatus(svc);
+            boolean updates = Bridge.sCallState;
             if (calling || tmu || n != 0 || bt > 0) {
-                Dipo.log("keys: call button: DiPO's (call: carplay " + calling + ", tmu " + tmu + ", callers " + n + ", bluetooth " + bt + ")");
+                Dipo.log("keys: call button: DiPO's (call: carplay " + calling + ", tmu " + tmu + ", callers " + n + ", bluetooth " + bt
+                        + (updates ? "" : ", no call state updates") + ")");
                 return false;
             }
             Intent i = new Intent();
@@ -186,7 +194,7 @@ final class CarKeys {
             i.putExtra("CarPlayMode", CARPLAY_MODE_PHONE);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(i);
-            Dipo.log("keys: call button with no call: CarPlay Phone");
+            Dipo.log("keys: call button with no call: CarPlay Phone" + (updates ? "" : " (no call state updates: CarPlay's call mode says no call)"));
             return true;
         } catch (Throwable t) {
             Dipo.error("keys: call button", t);
